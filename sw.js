@@ -1,32 +1,37 @@
 /**
- * MHNET VENDAS - SERVICE WORKER V183
+ * MHNET VENDAS — SERVICE WORKER V184
  */
-const CACHE_NAME = 'mhnet-v183';
-const BYPASS = ['script.google.com', 'api.anthropic.com', 'nominatim.openstreetmap.org'];
-const STATIC  = ['./', './index.html', './app.js', './manifest.json'];
+const CACHE = 'mhnet-v184';
+const BYPASS = ['script.google.com','generativelanguage.googleapis.com','nominatim.openstreetmap.org','callmebot.com'];
+const PRECACHE = ['./', './index.html', './app.js', './manifest.json'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(STATIC).catch(() => {})).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(PRECACHE).catch(()=>{})).then(()=>self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.startsWith('chrome-extension')) return;
-  if (BYPASS.some(b => e.request.url.includes(b))) return;
+  const url = e.request.url;
+  if (url.startsWith('chrome-extension') || BYPASS.some(b=>url.includes(b))) return;
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, res.clone()));
+        if (res && res.ok && e.request.method==='GET') {
+          caches.open(CACHE).then(c=>c.put(e.request,res.clone()));
+        }
         return res;
-      }).catch(() => cached || new Response('Offline', { status: 503 }));
-      return cached || network;
+      }).catch(()=>null);
+      if (cached) { network; return cached; }
+      return network.then(res=>res||new Response('{"status":"error","message":"offline"}',{headers:{'Content-Type':'application/json'}}));
     })
   );
 });
 
-self.addEventListener('message', e => {
-  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
-});
+self.addEventListener('message', e => { if(e.data?.type==='SKIP_WAITING') self.skipWaiting(); });
