@@ -9,19 +9,18 @@
   <title>MHNET Gestor</title>
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* =============================================
-       TOKENS & VARIABLES
-    ============================================= */
+    /* ====================================================
+       CSS VARIABLES & RESET
+    ==================================================== */
     :root {
       --navy:       #003580;
       --navy-dark:  #00255a;
       --navy-mid:   #004499;
       --cyan:       #00b4d8;
-      --cyan-light: #90e0ef;
-      --surface:    #f5f7fc;
+      --surface:    #f4f6fb;
       --card:       #ffffff;
       --border:     #e4e9f2;
       --text-1:     #0d1b3e;
@@ -30,825 +29,977 @@
       --success:    #00c896;
       --warning:    #ffb300;
       --danger:     #f44336;
-      --radius-sm:  10px;
-      --radius-md:  16px;
-      --radius-lg:  24px;
-      --shadow-sm:  0 2px 8px rgba(0,53,128,.07);
-      --shadow-md:  0 6px 24px rgba(0,53,128,.12);
-      --shadow-lg:  0 16px 48px rgba(0,53,128,.18);
-      --mono: 'Space Mono', monospace;
-      --sans: 'DM Sans', sans-serif;
+      --purple:     #7c3aed;
+      --orange:     #ea580c;
+      --teal:       #0d9488;
+      --r-sm:  10px;
+      --r-md:  16px;
+      --r-lg:  24px;
+      --sh-sm: 0 2px 8px rgba(0,53,128,.07);
+      --sh-md: 0 6px 24px rgba(0,53,128,.12);
+      --sh-lg: 0 16px 48px rgba(0,53,128,.18);
     }
-
-    /* =============================================
-       RESET & BASE
-    ============================================= */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: var(--sans); background: var(--surface); color: var(--text-1); overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-    button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+    html { height: 100%; }
+    body { font-family: 'DM Sans', sans-serif; background: #1a1f35; color: var(--text-1); height: 100%; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    button { font-family: inherit; cursor: pointer; border: none; outline: none; background: none; }
     input, select, textarea { font-family: inherit; outline: none; border: none; }
     a { text-decoration: none; color: inherit; }
-    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    /* =============================================
-       LAYOUT SHELL
-    ============================================= */
-    #app { display: flex; flex-direction: column; height: 100dvh; max-width: 430px; margin: 0 auto; position: relative; overflow: hidden; background: var(--card); box-shadow: var(--shadow-lg); }
+    /* ====================================================
+       DESKTOP WRAPPER — CRM layout
+    ==================================================== */
+    #appWrapper {
+      display: flex;
+      height: 100dvh;
+      max-width: 1400px;
+      margin: 0 auto;
+      position: relative;
+    }
 
-    /* =============================================
+    /* Desktop sidebar */
+    #desktopSidebar {
+      width: 220px;
+      background: var(--navy-dark);
+      display: none;
+      flex-direction: column;
+      padding: 24px 0;
+      flex-shrink: 0;
+    }
+    .dsb-logo { padding: 0 20px 24px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .dsb-logo-icon { width: 42px; height: 42px; background: var(--cyan); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.1rem; margin-bottom: 8px; }
+    .dsb-logo-title { font-size: 1rem; font-weight: 800; color: #fff; }
+    .dsb-logo-sub { font-size: .7rem; color: rgba(255,255,255,.5); }
+    .dsb-nav { padding: 16px 12px; flex: 1; overflow-y: auto; }
+    .dsb-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-sm); color: rgba(255,255,255,.6); font-size: .82rem; font-weight: 600; cursor: pointer; margin-bottom: 2px; transition: all .2s; }
+    .dsb-item:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
+    .dsb-item.on { background: var(--cyan); color: #fff; }
+    .dsb-item i { width: 16px; text-align: center; font-size: .9rem; }
+    .dsb-section { font-size: .6rem; font-weight: 800; color: rgba(255,255,255,.3); text-transform: uppercase; letter-spacing: .1em; padding: 12px 12px 6px; margin-top: 8px; }
+    .dsb-user { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.1); font-size: .78rem; color: rgba(255,255,255,.6); }
+    .dsb-user strong { display: block; color: #fff; margin-bottom: 4px; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Mobile app shell */
+    #app {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      height: 100dvh;
+      background: var(--surface);
+      overflow: hidden;
+      box-shadow: var(--sh-lg);
+    }
+
+    /* ====================================================
        LOADER
-    ============================================= */
-    #loader { position: fixed; inset: 0; z-index: 9999; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+    ==================================================== */
+    #loader { position: fixed; inset: 0; z-index: 9999; background: rgba(255,255,255,.93); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
     #loader.active { display: flex; }
-    .loader-ring { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin .8s linear infinite; }
-    .loader-text { font-size: .75rem; font-weight: 600; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
+    .loader-ring { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin .8s linear infinite; }
+    .loader-text { font-size: .72rem; font-weight: 700; color: var(--text-3); letter-spacing: .1em; text-transform: uppercase; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* =============================================
+    /* ====================================================
        OFFLINE BANNER
-    ============================================= */
-    #offlineBanner { background: var(--danger); color: #fff; text-align: center; padding: 6px 12px; font-size: .78rem; font-weight: 600; display: none; }
-    #offlineBanner.show { display: block; }
+    ==================================================== */
+    #offlineBanner { background: var(--danger); color: #fff; text-align: center; padding: 7px 12px; font-size: .78rem; font-weight: 700; display: none; align-items: center; justify-content: center; gap: 6px; }
+    #offlineBanner.show { display: flex; }
 
-    /* =============================================
-       LOGIN SCREEN
-    ============================================= */
-    #loginScreen { position: absolute; inset: 0; z-index: 100; background: linear-gradient(160deg, var(--navy-dark) 0%, var(--navy) 50%, #0060c0 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; gap: 0; }
-    .login-logo { width: 64px; height: 64px; background: rgba(255,255,255,.15); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.2); }
-    .login-logo i { font-size: 28px; color: #fff; }
-    .login-title { font-size: 1.8rem; font-weight: 800; color: #fff; letter-spacing: -.03em; margin-bottom: 4px; }
-    .login-sub { font-size: .85rem; color: rgba(255,255,255,.6); margin-bottom: 40px; font-weight: 400; }
-    .login-card { background: rgba(255,255,255,.1); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.2); border-radius: var(--radius-lg); padding: 28px 24px; width: 100%; }
+    /* ====================================================
+       LOGIN
+    ==================================================== */
+    #loginScreen { position: fixed; inset: 0; z-index: 200; background: linear-gradient(160deg, var(--navy-dark) 0%, #0050b3 60%, #006ec7 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+    .login-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 32px; }
+    .login-brand-icon { width: 56px; height: 56px; background: rgba(255,255,255,.15); border-radius: 18px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.25); font-size: 1.5rem; color: #fff; }
+    .login-brand-text h1 { font-size: 1.7rem; font-weight: 800; color: #fff; letter-spacing: -.03em; }
+    .login-brand-text p { font-size: .82rem; color: rgba(255,255,255,.6); }
+    .login-card { background: rgba(255,255,255,.1); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.2); border-radius: var(--r-lg); padding: 28px 24px; width: 100%; max-width: 360px; }
     .login-label { font-size: .7rem; font-weight: 700; color: rgba(255,255,255,.7); text-transform: uppercase; letter-spacing: .08em; display: block; margin-bottom: 8px; }
-    #userSelect { width: 100%; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: var(--radius-sm); padding: 14px 16px; color: #fff; font-size: .95rem; font-weight: 600; margin-bottom: 16px; appearance: none; }
+    #userSelect { width: 100%; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: var(--r-sm); padding: 14px 16px; color: #fff; font-size: .95rem; font-weight: 600; margin-bottom: 14px; appearance: none; }
     #userSelect option { background: var(--navy-dark); color: #fff; }
-    .btn-login { width: 100%; background: #fff; color: var(--navy); border-radius: var(--radius-sm); padding: 15px; font-size: .95rem; font-weight: 800; letter-spacing: .03em; transition: all .2s; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+    .btn-login { width: 100%; background: #fff; color: var(--navy); border-radius: var(--r-sm); padding: 15px; font-size: .95rem; font-weight: 800; transition: all .2s; box-shadow: 0 4px 20px rgba(0,0,0,.25); }
     .btn-login:active { transform: scale(.97); }
 
-    /* =============================================
-       HEADER
-    ============================================= */
-    #header { background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-mid) 100%); padding: calc(env(safe-area-inset-top) + 16px) 20px 20px; color: #fff; position: relative; flex-shrink: 0; }
-    .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-    .header-greeting { font-size: .72rem; color: rgba(255,255,255,.6); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
-    .header-name { font-size: 1.1rem; font-weight: 700; color: #fff; line-height: 1.2; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .header-actions { display: flex; gap: 8px; }
-    .header-btn { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .9rem; border: 1px solid rgba(255,255,255,.15); transition: all .2s; }
-    .header-btn:active { transform: scale(.93); background: rgba(255,255,255,.22); }
-    .header-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-    .header-chip { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 5px 10px; font-size: .72rem; font-weight: 600; color: rgba(255,255,255,.9); display: flex; align-items: center; gap: 5px; }
-    .header-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); display: inline-block; }
+    /* ====================================================
+       HEADER (mobile top bar)
+    ==================================================== */
+    #header { background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-mid) 100%); padding: calc(env(safe-area-inset-top) + 14px) 18px 16px; color: #fff; flex-shrink: 0; }
+    .hdr-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .hdr-greeting { font-size: .68rem; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .06em; }
+    .hdr-name { font-size: 1.05rem; font-weight: 700; color: #fff; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hdr-actions { display: flex; gap: 7px; }
+    .hdr-btn { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .85rem; border: 1px solid rgba(255,255,255,.15); transition: all .2s; }
+    .hdr-btn:active { background: rgba(255,255,255,.22); }
+    .hdr-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+    .hdr-chip { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.2); border-radius: 7px; padding: 4px 9px; font-size: .68rem; font-weight: 600; color: rgba(255,255,255,.9); display: flex; align-items: center; gap: 5px; }
+    .hdr-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
 
-    /* =============================================
-       SCROLL CONTENT
-    ============================================= */
-    #mainScroll { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; }
+    /* ====================================================
+       MAIN SCROLL
+    ==================================================== */
+    #mainScroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
-    /* =============================================
+    /* ====================================================
        PAGES
-    ============================================= */
-    .page { display: none; padding: 20px; padding-bottom: 100px; animation: pageIn .25s ease; }
+    ==================================================== */
+    .page { display: none; padding: 18px; padding-bottom: 90px; animation: pageIn .22s ease; }
     .page.active { display: block; }
-    @keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-    .page-back { width: 38px; height: 38px; background: var(--surface); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-2); font-size: .9rem; flex-shrink: 0; border: 1px solid var(--border); }
-    .page-title { font-size: 1.2rem; font-weight: 800; color: var(--text-1); }
+    @keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .pg-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .pg-back { width: 36px; height: 36px; background: var(--card); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: var(--text-2); font-size: .85rem; border: 1px solid var(--border); flex-shrink: 0; }
+    .pg-title { font-size: 1.15rem; font-weight: 800; color: var(--text-1); }
 
-    /* =============================================
-       DASHBOARD PAGE
-    ============================================= */
-    /* Admin Banner */
-    .admin-banner { background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-    .admin-badge { display: flex; align-items: center; gap: 8px; }
-    .admin-badge i { color: var(--warning); font-size: .9rem; }
-    .admin-badge span { font-size: .75rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: .06em; }
+    /* ====================================================
+       DASHBOARD
+    ==================================================== */
+    .admin-bar { background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: var(--r-md); padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .admin-badge { display: flex; align-items: center; gap: 7px; color: #fff; font-size: .75rem; font-weight: 700; text-transform: uppercase; }
+    .admin-badge i { color: var(--warning); }
     .admin-btns { display: flex; gap: 6px; }
-    .admin-btn { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; padding: 5px 10px; font-size: .7rem; font-weight: 700; color: rgba(255,255,255,.85); }
-    .admin-btn:active { background: rgba(255,255,255,.2); }
+    .admin-btn-sm { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); border-radius: 7px; padding: 5px 10px; font-size: .7rem; font-weight: 700; color: rgba(255,255,255,.85); }
 
-    /* Funil Card */
-    .funnel-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: var(--shadow-sm); cursor: pointer; transition: all .2s; }
-    .funnel-card:active { transform: scale(.98); }
-    .funnel-icon { width: 44px; height: 44px; background: #e8f5e9; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 1.1rem; flex-shrink: 0; }
-    .funnel-text .label { font-size: .68rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
-    .funnel-text .value { font-size: 1rem; font-weight: 800; color: var(--text-1); }
-    .funnel-arrow { color: var(--text-3); font-size: .8rem; }
+    .perf-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; box-shadow: var(--sh-sm); transition: transform .15s; }
+    .perf-card:active { transform: scale(.98); }
+    .perf-icon { width: 42px; height: 42px; background: #e8f5e9; border-radius: 11px; display: flex; align-items: center; justify-content: center; color: var(--success); font-size: 1rem; flex-shrink: 0; }
+    .perf-texts .lbl { font-size: .65rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+    .perf-texts .val { font-size: .95rem; font-weight: 800; color: var(--text-1); }
 
-    /* Stats Row */
-    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-    .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: all .2s; }
+    .stats-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-bottom: 14px; }
+    .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; text-align: center; cursor: pointer; box-shadow: var(--sh-sm); transition: transform .15s; }
     .stat-tile:active { transform: scale(.97); }
-    .stat-tile.accent { background: var(--navy); border-color: var(--navy); }
-    .stat-num { font-size: 2rem; font-weight: 900; color: var(--navy); letter-spacing: -.04em; line-height: 1; }
-    .stat-tile.accent .stat-num { color: #fff; }
-    .stat-lbl { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-top: 4px; }
+    .stat-num { font-size: 1.9rem; font-weight: 900; color: var(--navy); letter-spacing: -.04em; line-height: 1; }
+    .stat-lbl { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-top: 3px; }
+    .stat-tile.accent { background: var(--navy); }
+    .stat-tile.accent .stat-num { color: #fff; font-size: 1.1rem; }
     .stat-tile.accent .stat-lbl { color: rgba(255,255,255,.6); }
-    .stat-tile.accent .stat-icon { color: rgba(255,255,255,.8); font-size: 1.3rem; }
+    .stat-tile.accent i { font-size: 1.4rem; color: rgba(255,255,255,.8); }
 
-    /* Quick Actions Grid */
-    .section-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); margin-bottom: 12px; }
-    .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-    .quick-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; transition: all .2s; box-shadow: var(--shadow-sm); }
-    .quick-item:active { transform: scale(.94); background: var(--surface); }
-    .quick-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .95rem; }
-    .quick-icon.indigo { background: #ede9fe; color: #6d28d9; }
-    .quick-icon.red { background: #fee2e2; color: #dc2626; }
-    .quick-icon.orange { background: #fff7ed; color: #ea580c; }
-    .quick-icon.teal { background: #ccfbf1; color: #0d9488; }
-    .quick-lbl { font-size: .62rem; font-weight: 700; color: var(--text-2); text-align: center; line-height: 1.2; }
+    .sec-lbl { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text-3); margin-bottom: 11px; }
+    .quick4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-bottom: 14px; }
+    .q-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; box-shadow: var(--sh-sm); transition: transform .15s; }
+    .q-item:active { transform: scale(.93); }
+    .q-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: .9rem; }
+    .q-icon.indigo { background: #ede9fe; color: #6d28d9; }
+    .q-icon.red    { background: #fee2e2; color: #dc2626; }
+    .q-icon.orange { background: #fff7ed; color: #ea580c; }
+    .q-icon.teal   { background: #ccfbf1; color: #0d9488; }
+    .q-icon.purple { background: #f3e8ff; color: #7c3aed; }
+    .q-icon.sky    { background: #e0f2fe; color: #0284c7; }
+    .q-icon.green  { background: #dcfce7; color: #16a34a; }
+    .q-icon.pink   { background: #fce7f3; color: #be185d; }
+    .q-lbl { font-size: .6rem; font-weight: 700; color: var(--text-2); text-align: center; line-height: 1.2; }
 
-    /* CTA Button */
-    .cta-btn { width: 100%; background: linear-gradient(135deg, var(--navy-mid), var(--navy-dark)); color: #fff; border-radius: var(--radius-md); padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; box-shadow: var(--shadow-md); transition: all .2s; }
-    .cta-btn:active { transform: scale(.98); }
-    .cta-left { display: flex; align-items: center; gap: 14px; }
-    .cta-dot { width: 38px; height: 38px; background: rgba(255,255,255,.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-    .cta-texts .sub { font-size: .7rem; opacity: .7; }
-    .cta-texts .main { font-size: 1rem; font-weight: 800; }
-    .cta-arrow { opacity: .6; font-size: .85rem; }
+    .cta-strip { width: 100%; background: linear-gradient(135deg, var(--navy-mid), var(--navy-dark)); color: #fff; border-radius: var(--r-md); padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; box-shadow: var(--sh-md); transition: transform .15s; }
+    .cta-strip:active { transform: scale(.98); }
+    .cta-l { display: flex; align-items: center; gap: 12px; }
+    .cta-dot { width: 36px; height: 36px; background: rgba(255,255,255,.15); border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+    .cta-texts .sub { font-size: .67rem; opacity: .7; }
+    .cta-texts .main { font-size: .95rem; font-weight: 800; }
 
-    /* Alert Banner */
-    #lembreteBanner { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; border-left: 3px solid var(--warning); border-radius: var(--radius-sm); padding: 12px 16px; display: none; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; margin-top: 8px; }
+    #lembreteBanner { background: #fff7ed; border: 1px solid #fde68a; border-left: 3px solid var(--warning); border-radius: 9px; padding: 11px 14px; display: none; align-items: center; gap: 10px; cursor: pointer; margin-top: 8px; }
     #lembreteBanner.show { display: flex; }
-    .lemb-icon { width: 32px; height: 32px; background: #fef3c7; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--warning); flex-shrink: 0; font-size: .9rem; }
-    .lemb-text .t1 { font-size: .82rem; font-weight: 700; color: #92400e; }
-    .lemb-text .t2 { font-size: .72rem; color: #b45309; }
+    .lb-icon { width: 30px; height: 30px; background: #fef3c7; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: var(--warning); flex-shrink: 0; }
 
-    /* =============================================
-       LEADS PAGE
-    ============================================= */
-    .filter-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; }
+    /* FTTA dashboard card */
+    .ftta-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .ftta-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px 12px; cursor: pointer; box-shadow: var(--sh-sm); transition: transform .15s; display: flex; align-items: center; gap: 10px; }
+    .ftta-card:active { transform: scale(.97); }
+    .ftta-badge { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 900; color: #fff; flex-shrink: 0; }
+    .ftta-badge.laj { background: linear-gradient(135deg, #0050b3, #003580); }
+    .ftta-badge.est { background: linear-gradient(135deg, #0d9488, #0f766e); }
+    .ftta-badge.pro { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
+    .ftta-texts .t { font-size: .72rem; font-weight: 800; color: var(--text-1); }
+    .ftta-texts .s { font-size: .62rem; color: var(--text-3); }
+
+    /* ====================================================
+       LEADS CARDS
+    ==================================================== */
+    .filter-scroll { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; }
     .filter-scroll::-webkit-scrollbar { display: none; }
-    .filter-tag { padding: 7px 14px; border-radius: 99px; font-size: .75rem; font-weight: 700; white-space: nowrap; background: var(--card); color: var(--text-2); border: 1px solid var(--border); flex-shrink: 0; transition: all .2s; }
-    .filter-tag.on { background: var(--navy); color: #fff; border-color: var(--navy); }
-    .filter-tag:active { transform: scale(.95); }
+    .ftag { padding: 6px 13px; border-radius: 99px; font-size: .72rem; font-weight: 700; white-space: nowrap; background: var(--card); color: var(--text-2); border: 1px solid var(--border); flex-shrink: 0; transition: all .15s; }
+    .ftag.on { background: var(--navy); color: #fff; border-color: var(--navy); }
 
-    .search-wrap { position: relative; margin-bottom: 16px; }
-    .search-wrap i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: .9rem; }
-    #searchLead { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 12px 40px; font-size: .9rem; font-weight: 500; color: var(--text-1); transition: border .2s; }
-    #searchLead:focus { border-color: var(--navy); }
+    .search-wrap { position: relative; margin-bottom: 14px; }
+    .search-wrap i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: .85rem; pointer-events: none; }
+    .search-input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 11px 13px 11px 38px; font-size: .9rem; font-weight: 500; color: var(--text-1); transition: border .2s; }
+    .search-input:focus { border-color: var(--navy); }
 
-    .lead-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 10px; cursor: pointer; transition: all .2s; box-shadow: var(--shadow-sm); }
-    .lead-card:active { transform: scale(.98); box-shadow: none; }
-    .lead-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-    .lead-name { font-size: 1rem; font-weight: 700; color: var(--text-1); }
-    .lead-location { font-size: .75rem; color: var(--text-3); margin-bottom: 4px; }
-    .lead-sched { font-size: .72rem; color: var(--warning); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    /* LEAD CARD — expanded with action buttons */
+    .lead-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px; margin-bottom: 10px; box-shadow: var(--sh-sm); transition: transform .15s; }
+    .lead-card:active { transform: scale(.985); }
+    .lc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .lc-name { font-size: .97rem; font-weight: 800; color: var(--text-1); cursor: pointer; }
+    .lc-city { font-size: .73rem; color: var(--text-3); margin-bottom: 5px; }
+    .lc-phone { font-size: .78rem; font-weight: 600; color: var(--text-2); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+    .lc-provedor { display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; padding: 2px 7px; font-size: .65rem; font-weight: 800; color: #1d4ed8; margin-bottom: 8px; }
+    .lc-btns { display: flex; gap: 7px; }
+    .lc-btn { flex: 1; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .78rem; font-weight: 700; gap: 5px; transition: all .15s; border: 1px solid transparent; }
+    .lc-btn:active { transform: scale(.93); }
+    .lc-btn.call { background: #e0f2fe; color: #0284c7; border-color: #bae6fd; }
+    .lc-btn.whats { background: #d1fae5; color: #059669; border-color: #a7f3d0; }
+    .lc-btn.map { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+    .lc-btn.detail { background: var(--surface); color: var(--text-2); border-color: var(--border); font-size: .7rem; }
+    .lc-sched { font-size: .7rem; color: var(--warning); font-weight: 700; display: flex; align-items: center; gap: 4px; margin-top: 4px; }
 
-    /* Status Badges */
-    .badge { padding: 3px 9px; border-radius: 6px; font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
-    .badge.novo { background: #dbeafe; color: #1d4ed8; }
-    .badge.agendado { background: #fef3c7; color: #92400e; }
-    .badge.fechado { background: #d1fae5; color: #065f46; }
+    /* Badge */
+    .badge { padding: 3px 8px; border-radius: 5px; font-size: .62rem; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
+    .badge.novo       { background: #dbeafe; color: #1d4ed8; }
+    .badge.agendado   { background: #fef3c7; color: #92400e; }
+    .badge.fechado    { background: #d1fae5; color: #065f46; }
     .badge.negociacao { background: #ede9fe; color: #5b21b6; }
-    .badge.default { background: var(--surface); color: var(--text-3); }
+    .badge.default    { background: var(--surface); color: var(--text-3); }
 
-    /* =============================================
-       FORM PAGE (Cadastro)
-    ============================================= */
-    .form-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
-    .form-section-title { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--navy); margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
-    .form-section-title i { opacity: .7; }
-    .field { margin-bottom: 16px; }
+    /* ====================================================
+       FORM
+    ==================================================== */
+    .form-sec { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 18px; margin-bottom: 14px; box-shadow: var(--sh-sm); }
+    .form-sec-title { font-size: .66rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--navy); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+    .field { margin-bottom: 14px; }
     .field:last-child { margin-bottom: 0; }
-    .field label { display: block; font-size: .7rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 7px; }
-    .field input, .field select, .field textarea { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: .95rem; font-weight: 500; color: var(--text-1); transition: all .2s; }
-    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--navy); background: #fff; box-shadow: 0 0 0 3px rgba(0,53,128,.07); }
-    .field textarea { resize: vertical; min-height: 80px; }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .gps-btn { background: none; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 10px; width: 100%; font-size: .8rem; font-weight: 600; color: var(--text-3); display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; transition: all .2s; }
-    .gps-btn:active { border-color: var(--navy); color: var(--navy); }
-    .form-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .field label { display: block; font-size: .68rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .f-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-sm); padding: 11px 13px; font-size: .92rem; font-weight: 500; color: var(--text-1); transition: all .2s; }
+    .f-input:focus { border-color: var(--navy); background: #fff; box-shadow: 0 0 0 3px rgba(0,53,128,.07); }
+    textarea.f-input { resize: vertical; min-height: 72px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .gps-btn { background: none; border: 1.5px dashed var(--border); border-radius: var(--r-sm); padding: 9px; width: 100%; font-size: .78rem; font-weight: 600; color: var(--text-3); display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 7px; }
 
-    /* =============================================
+    /* History */
+    .hist-entry { background: var(--surface); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: .82rem; }
+    .hist-entry .he-date { font-size: .65rem; color: var(--text-3); font-weight: 700; float: right; }
+
+    /* ====================================================
        BUTTONS
-    ============================================= */
-    .btn { border-radius: var(--radius-sm); padding: 14px 20px; font-size: .9rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s; width: 100%; }
+    ==================================================== */
+    .btn { border-radius: var(--r-sm); padding: 13px 18px; font-size: .88rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all .15s; width: 100%; }
     .btn:active { transform: scale(.97); }
-    .btn-navy { background: var(--navy); color: #fff; box-shadow: 0 4px 16px rgba(0,53,128,.25); }
-    .btn-navy:active { background: var(--navy-dark); }
-    .btn-ghost { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
-    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-navy    { background: var(--navy); color: #fff; box-shadow: 0 4px 14px rgba(0,53,128,.22); }
+    .btn-ghost   { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+    .btn-danger  { background: var(--danger); color: #fff; }
     .btn-success { background: var(--success); color: #fff; }
-    .btn-sm { padding: 9px 14px; font-size: .8rem; border-radius: 8px; width: auto; }
+    .btn-sm      { padding: 8px 13px; font-size: .78rem; border-radius: 8px; width: auto; }
 
-    /* =============================================
-       TASKS PAGE
-    ============================================= */
-    .tasks-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .task-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; transition: all .2s; box-shadow: var(--shadow-sm); }
-    .task-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all .2s; }
-    .task-check.done { background: var(--success); border-color: var(--success); }
-    .task-check i { font-size: .65rem; color: #fff; }
-    .task-body { flex: 1; }
-    .task-desc { font-size: .88rem; font-weight: 600; color: var(--text-1); }
-    .task-desc.done { text-decoration: line-through; color: var(--text-3); }
-    .task-meta { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
-    .task-chip { font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
-    .task-chip.date { background: #fee2e2; color: #b91c1c; }
-    .task-chip.lead { background: #dbeafe; color: #1d4ed8; }
-    .task-del { color: var(--border); font-size: .85rem; cursor: pointer; padding: 4px; transition: color .2s; }
-    .task-del:hover { color: var(--danger); }
-    .task-item.done-item { opacity: .55; }
-    .tasks-empty { text-align: center; padding: 40px 20px; color: var(--text-3); }
-    .tasks-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; opacity: .4; }
+    /* ====================================================
+       TASKS
+    ==================================================== */
+    .task-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 11px; box-shadow: var(--sh-sm); }
+    .task-item.done-item { opacity: .5; }
+    .t-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all .2s; }
+    .t-check.done { background: var(--success); border-color: var(--success); }
+    .t-check i { font-size: .6rem; color: #fff; }
+    .t-body { flex: 1; }
+    .t-desc { font-size: .85rem; font-weight: 600; color: var(--text-1); }
+    .t-desc.done { text-decoration: line-through; color: var(--text-3); }
+    .t-meta { display: flex; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+    .t-chip { font-size: .63rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .t-chip.date { background: #fee2e2; color: #b91c1c; }
+    .t-chip.lead { background: #dbeafe; color: #1d4ed8; }
+    .t-del { color: var(--border); cursor: pointer; padding: 4px; transition: color .2s; }
+    .t-del:hover { color: var(--danger); }
 
-    /* =============================================
-       FALTAS PAGE
-    ============================================= */
-    .history-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 8px; }
-    .history-item .h-motivo { font-size: .85rem; font-weight: 700; color: var(--text-1); }
-    .history-item .h-meta { font-size: .72rem; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
-    .h-status { font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: #d1fae5; color: #065f46; }
-
-    /* =============================================
-       INDICADORES PAGE
-    ============================================= */
-    .ind-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
-    .ind-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    /* ====================================================
+       INDICADORES
+    ==================================================== */
+    .ind-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 18px; margin-bottom: 11px; box-shadow: var(--sh-sm); }
+    .ind-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .ind-label { font-size: .8rem; font-weight: 600; color: var(--text-2); }
-    .ind-val { font-size: 1.5rem; font-weight: 900; color: var(--navy); letter-spacing: -.03em; }
-    .progress-bar { width: 100%; height: 8px; background: var(--surface); border-radius: 99px; overflow: hidden; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--navy-mid), var(--cyan)); border-radius: 99px; transition: width .6s ease; }
-    .ind-month { font-size: .7rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
-    .ia-msg-box { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: var(--radius-sm); padding: 14px; font-size: .82rem; line-height: 1.5; color: #1e40af; }
-    .ia-msg-box i { margin-right: 6px; }
+    .ind-val { font-size: 1.45rem; font-weight: 900; color: var(--navy); letter-spacing: -.03em; }
+    .prog-bar { width: 100%; height: 7px; background: var(--surface); border-radius: 99px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 99px; transition: width .6s ease; }
 
-    /* =============================================
-       MATERIAIS PAGE
-    ============================================= */
-    .mat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .mat-folder { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer; transition: all .2s; box-shadow: var(--shadow-sm); }
-    .mat-folder:active { transform: scale(.96); }
-    .mat-folder i { font-size: 2.2rem; color: var(--cyan); }
-    .mat-folder span { font-size: .75rem; font-weight: 700; text-align: center; color: var(--text-2); line-height: 1.3; }
-    .mat-file { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
-    .mat-thumb { height: 110px; overflow: hidden; background: var(--surface); }
+    /* ====================================================
+       MATERIAIS
+    ==================================================== */
+    .mat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .mat-folder { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 18px 10px; display: flex; flex-direction: column; align-items: center; gap: 9px; cursor: pointer; box-shadow: var(--sh-sm); transition: transform .15s; }
+    .mat-folder:active { transform: scale(.95); }
+    .mat-folder i { font-size: 2rem; color: var(--cyan); }
+    .mat-folder span { font-size: .72rem; font-weight: 700; text-align: center; color: var(--text-2); line-height: 1.3; }
+    .mat-file { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; box-shadow: var(--sh-sm); }
+    .mat-thumb { height: 100px; background: var(--surface); overflow: hidden; }
     .mat-thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .mat-info { padding: 10px; }
-    .mat-name { font-size: .72rem; font-weight: 700; color: var(--text-2); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mat-actions { display: flex; gap: 6px; }
-    .mat-act { flex: 1; padding: 8px; border-radius: 7px; font-size: .75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .mat-info { padding: 9px; }
+    .mat-name { font-size: .7rem; font-weight: 700; color: var(--text-2); margin-bottom: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mat-acts { display: flex; gap: 5px; }
+    .mat-act { flex: 1; padding: 7px; border-radius: 6px; font-size: .72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
     .mat-act.dl { background: #dbeafe; color: #1d4ed8; }
     .mat-act.wh { background: #d1fae5; color: #065f46; }
 
-    /* =============================================
-       OBJECOES PAGE
-    ============================================= */
-    .obj-result { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; min-height: 80px; font-size: .85rem; line-height: 1.55; color: var(--text-2); margin-top: 12px; }
+    /* ====================================================
+       CONCORRENTES PAGE
+    ==================================================== */
+    .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .comp-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px; cursor: pointer; box-shadow: var(--sh-sm); transition: transform .15s; }
+    .comp-card:active { transform: scale(.96); }
+    .comp-card.selected { border-color: var(--navy); background: #eff6ff; }
+    .comp-logo { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: .82rem; color: #fff; margin-bottom: 8px; }
+    .comp-name { font-size: .82rem; font-weight: 800; color: var(--text-1); margin-bottom: 2px; }
+    .comp-type { font-size: .65rem; color: var(--text-3); }
+    .comp-detail { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 18px; box-shadow: var(--sh-sm); }
+    .comp-detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .pros-box, .cons-box { border-radius: var(--r-sm); padding: 12px; }
+    .pros-box { background: #d1fae5; }
+    .cons-box { background: #fee2e2; }
+    .pc-title { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+    .pros-box .pc-title { color: #065f46; }
+    .cons-box .pc-title { color: #b91c1c; }
+    .pc-item { font-size: .75rem; color: var(--text-1); margin-bottom: 4px; display: flex; gap: 5px; }
+    .pc-item::before { content: '•'; opacity: .6; flex-shrink: 0; }
+    .ai-resp-box { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; border-radius: var(--r-sm); padding: 13px; font-size: .82rem; line-height: 1.55; color: #1e40af; margin-top: 12px; }
 
-    /* =============================================
-       MODAL (Lead Detail)
-    ============================================= */
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); z-index: 500; display: none; align-items: flex-end; }
-    .modal-backdrop.open { display: flex; }
-    .modal-sheet { background: var(--card); border-radius: 24px 24px 0 0; padding: 24px 20px; padding-bottom: calc(env(safe-area-inset-bottom) + 24px); width: 100%; max-height: 90dvh; overflow-y: auto; animation: slideUp .3s ease; }
+    /* ====================================================
+       MODAL — LEAD DETAILS
+    ==================================================== */
+    .modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); z-index: 500; display: none; align-items: flex-end; }
+    .modal-back.open { display: flex; }
+    .modal-sheet { background: var(--card); border-radius: 22px 22px 0 0; padding: 22px 18px; padding-bottom: calc(env(safe-area-inset-bottom) + 22px); width: 100%; max-height: 90dvh; overflow-y: auto; animation: slideUp .28s ease; position: relative; }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
-    .modal-lead-name { font-size: 1.3rem; font-weight: 800; color: var(--text-1); margin-bottom: 4px; }
-    .modal-lead-loc { font-size: .82rem; color: var(--text-3); margin-bottom: 20px; }
-    .modal-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .modal-info-tile { background: var(--surface); border-radius: var(--radius-sm); padding: 12px; }
-    .modal-info-lbl { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 3px; }
-    .modal-info-val { font-size: .88rem; font-weight: 700; color: var(--text-1); }
-    .modal-section { margin-bottom: 20px; }
-    .modal-section-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-    .modal-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
-    .modal-act { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 700; color: var(--text-2); cursor: pointer; transition: all .2s; }
-    .modal-act:active { transform: scale(.96); }
-    .modal-act.green { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
-    .modal-act.blue { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
-    .modal-act.red { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
-    .modal-act.purple { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
-    .modal-close { position: absolute; top: 20px; right: 20px; width: 32px; height: 32px; background: var(--surface); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: .8rem; }
+    .modal-handle { width: 38px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 18px; }
+    .modal-lead-name { font-size: 1.25rem; font-weight: 800; color: var(--text-1); }
+    .modal-lead-loc { font-size: .8rem; color: var(--text-3); margin: 3px 0 16px; }
+    .modal-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 18px; }
+    .modal-info-tile { background: var(--surface); border-radius: 9px; padding: 11px; }
+    .mit-lbl { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 2px; }
+    .mit-val { font-size: .85rem; font-weight: 700; color: var(--text-1); }
+    .modal-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 18px; }
+    .m-act { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; display: flex; align-items: center; gap: 7px; font-size: .75rem; font-weight: 700; color: var(--text-2); cursor: pointer; transition: all .15s; }
+    .m-act:active { transform: scale(.95); }
+    .m-act.green  { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+    .m-act.blue   { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+    .m-act.red    { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    .m-act.purple { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+    .m-act.warn   { background: #fff7ed; color: #92400e; border-color: #fed7aa; }
+    .m-sec-title { font-size: .67rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin-bottom: 9px; display: flex; align-items: center; gap: 5px; }
+    .m-sec { margin-bottom: 18px; }
+    .m-close { position: absolute; top: 18px; right: 18px; width: 30px; height: 30px; background: var(--surface); border-radius: 7px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: .78rem; }
     .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .m-f-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-sm); padding: 11px 13px; font-size: .9rem; }
+    .m-f-input:focus { border-color: var(--navy); }
+    textarea.m-f-input { resize: vertical; min-height: 70px; }
 
-    /* =============================================
-       MODAL (Generic)
-    ============================================= */
-    .modal2-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); z-index: 600; display: none; align-items: center; justify-content: center; padding: 20px; }
-    .modal2-backdrop.open { display: flex; }
-    .modal2-card { background: var(--card); border-radius: var(--radius-lg); padding: 24px; width: 100%; max-width: 380px; animation: fadeScale .25s ease; }
+    /* ====================================================
+       GENERIC MODAL 2
+    ==================================================== */
+    .modal2-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); z-index: 600; display: none; align-items: center; justify-content: center; padding: 18px; }
+    .modal2-back.open { display: flex; }
+    .modal2-card { background: var(--card); border-radius: var(--r-lg); padding: 22px; width: 100%; max-width: 380px; animation: fadeScale .22s ease; }
     @keyframes fadeScale { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
-    .modal2-title { font-size: 1.1rem; font-weight: 800; color: var(--text-1); margin-bottom: 16px; }
+    .m2-title { font-size: 1.05rem; font-weight: 800; color: var(--text-1); margin-bottom: 14px; }
 
-    /* =============================================
+    /* ====================================================
        BOTTOM NAV
-    ============================================= */
-    #bottomNav { background: rgba(255,255,255,.97); backdrop-filter: blur(16px); border-top: 1px solid var(--border); padding: 10px 8px; padding-bottom: calc(env(safe-area-inset-bottom) + 10px); display: flex; justify-content: space-around; align-items: center; flex-shrink: 0; position: relative; z-index: 50; }
-    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-3); font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; padding: 4px 12px; border-radius: 10px; transition: all .2s; }
-    .nav-item i { font-size: 1.2rem; transition: all .2s; }
-    .nav-item.on { color: var(--navy); }
-    .nav-item.on i { transform: translateY(-2px); }
-    .nav-fab { width: 52px; height: 52px; background: linear-gradient(135deg, var(--cyan), var(--navy-mid)); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.3rem; margin-top: -20px; box-shadow: 0 6px 20px rgba(0,100,200,.35); border: 3px solid var(--card); transition: all .2s; cursor: pointer; }
-    .nav-fab:active { transform: scale(.92); }
+    ==================================================== */
+    #bottomNav { background: rgba(255,255,255,.97); backdrop-filter: blur(16px); border-top: 1px solid var(--border); padding: 8px 6px; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); display: flex; justify-content: space-around; align-items: center; flex-shrink: 0; z-index: 50; }
+    .nav-i { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-3); font-size: .58rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; padding: 4px 10px; border-radius: 9px; transition: all .2s; }
+    .nav-i i { font-size: 1.15rem; }
+    .nav-i.on { color: var(--navy); }
+    .nav-fab { width: 50px; height: 50px; background: linear-gradient(135deg, var(--cyan), var(--navy-mid)); border-radius: 15px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.25rem; margin-top: -18px; box-shadow: 0 5px 18px rgba(0,100,200,.32); border: 3px solid var(--surface); transition: transform .15s; cursor: pointer; }
+    .nav-fab:active { transform: scale(.91); }
 
-    /* =============================================
+    /* ====================================================
        CHAT MODAL
-    ============================================= */
-    #chatModal { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.5); backdrop-filter: blur(6px); display: none; align-items: flex-end; }
+    ==================================================== */
+    #chatModal { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); display: none; align-items: flex-end; }
     #chatModal.open { display: flex; }
-    .chat-sheet { background: var(--card); border-radius: 24px 24px 0 0; width: 100%; padding: 20px; padding-bottom: calc(env(safe-area-inset-bottom) + 20px); height: 70dvh; display: flex; flex-direction: column; }
-    .chat-title { font-size: 1rem; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .chat-title i { color: var(--navy); }
-    #chatHistory { flex: 1; overflow-y: auto; padding: 4px 0; display: flex; flex-direction: column; gap: 8px; }
-    .chat-msg { max-width: 82%; padding: 10px 14px; border-radius: 14px; font-size: .85rem; line-height: 1.45; }
-    .chat-msg.user { background: var(--navy); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-    .chat-msg.ai { background: var(--surface); color: var(--text-1); align-self: flex-start; border-bottom-left-radius: 4px; }
-    .chat-input-row { display: flex; gap: 8px; margin-top: 12px; }
-    #chatInput { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; font-size: .9rem; }
+    .chat-sheet { background: var(--card); border-radius: 22px 22px 0 0; width: 100%; padding: 18px; padding-bottom: calc(env(safe-area-inset-bottom) + 18px); height: 72dvh; display: flex; flex-direction: column; }
+    .chat-title { font-size: .95rem; font-weight: 800; margin-bottom: 11px; display: flex; align-items: center; gap: 7px; color: var(--text-1); }
+    #chatHistory { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px 0; }
+    .c-msg { max-width: 84%; padding: 9px 13px; border-radius: 13px; font-size: .84rem; line-height: 1.45; }
+    .c-msg.user { background: var(--navy); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+    .c-msg.ai   { background: var(--surface); color: var(--text-1); align-self: flex-start; border-bottom-left-radius: 3px; }
+    .chat-input-row { display: flex; gap: 7px; margin-top: 11px; }
+    #chatInput { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 11px; padding: 11px; font-size: .88rem; }
     #chatInput:focus { border-color: var(--navy); }
-    .chat-send { width: 44px; height: 44px; background: var(--navy); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .chat-send { width: 42px; height: 42px; background: var(--navy); color: #fff; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-    /* =============================================
-       CONFIG MODAL
-    ============================================= */
-    #configModal { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.5); backdrop-filter: blur(6px); display: none; align-items: flex-end; }
-    #configModal.open { display: flex; }
-    .config-sheet { background: var(--card); border-radius: 24px 24px 0 0; width: 100%; padding: 24px 20px; padding-bottom: calc(env(safe-area-inset-bottom) + 20px); max-height: 80dvh; overflow-y: auto; }
-    .config-row { display: flex; gap: 8px; margin-top: 12px; }
+    /* ====================================================
+       FALTAS
+    ==================================================== */
+    .hist-falta { background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 13px; margin-bottom: 8px; }
+    .hf-motivo { font-size: .84rem; font-weight: 700; color: var(--text-1); }
+    .hf-meta { font-size: .7rem; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+    .hf-status { font-size: .63rem; font-weight: 800; padding: 2px 7px; border-radius: 4px; background: #d1fae5; color: #065f46; }
 
-    /* =============================================
-       TRANSFERENCIA MODAL
-    ============================================= */
-    #modalTransferencia { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.5); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; padding: 20px; }
-    #modalTransferencia.open { display: flex; }
-
-    /* =============================================
+    /* ====================================================
        UTILS
-    ============================================= */
-    .empty-state { text-align: center; padding: 48px 20px; color: var(--text-3); }
-    .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 12px; opacity: .35; }
-    .empty-state p { font-size: .88rem; }
+    ==================================================== */
+    .empty-state { text-align: center; padding: 44px 18px; color: var(--text-3); }
+    .empty-state i { font-size: 2.2rem; display: block; margin-bottom: 10px; opacity: .3; }
+    .empty-state p { font-size: .85rem; }
     .hidden { display: none !important; }
-    .text-mono { font-family: var(--mono); }
-    .sep { height: 1px; background: var(--border); margin: 16px 0; }
+    .sep { height: 1px; background: var(--border); margin: 14px 0; }
+    .flex-row { display: flex; gap: 8px; }
+    .text-mono { font-family: 'Space Mono', monospace; }
+
+    /* ====================================================
+       RESPONSIVE — desktop CRM layout
+    ==================================================== */
+    @media (min-width: 768px) {
+      body { background: #1a1f35; }
+      #appWrapper { box-shadow: none; }
+      #desktopSidebar { display: flex; }
+      #app { border-radius: 0; max-width: none; flex: 1; height: 100dvh; }
+      #header { display: none; }
+      #bottomNav { display: none; }
+      .page { padding: 28px 32px; padding-bottom: 40px; }
+      #mainScroll { height: 100dvh; }
+      /* Desktop: show more columns in grids */
+      .quick4 { grid-template-columns: repeat(6, 1fr); }
+      .ftta-cards { grid-template-columns: repeat(3, 1fr); }
+      .stats-2 { grid-template-columns: repeat(4, 1fr); }
+      .mat-grid { grid-template-columns: repeat(3, 1fr); }
+      .comp-grid { grid-template-columns: repeat(4, 1fr); }
+      .lead-list-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .lead-list-wrap .lead-card { margin-bottom: 0; }
+    }
+
+    /* ====================================================
+       CONFIG + TRANSFERENCIA modals
+    ==================================================== */
+    #configModal, #modalTransferencia { position: fixed; inset: 0; z-index: 700; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); display: none; align-items: flex-end; }
+    #configModal.open, #modalTransferencia.open { display: flex; }
+    .cfg-sheet { background: var(--card); border-radius: 22px 22px 0 0; width: 100%; padding: 22px 18px; padding-bottom: calc(env(safe-area-inset-bottom) + 22px); max-height: 80dvh; overflow-y: auto; }
   </style>
 </head>
 <body>
-<div id="app">
+<div id="appWrapper">
 
-  <!-- LOADER -->
-  <div id="loader"><div class="loader-ring"></div><div class="loader-text">Processando</div></div>
-
-  <!-- OFFLINE -->
-  <div id="offlineBanner"><i class="fas fa-wifi-slash"></i> &nbsp;Sem conexão com a internet</div>
-
-  <!-- ==================== LOGIN ==================== -->
-  <div id="loginScreen">
-    <div class="login-logo"><i class="fas fa-wifi"></i></div>
-    <div class="login-title">MHNET</div>
-    <div class="login-sub">Gestor de Vendas · Externas</div>
-    <div class="login-card">
-      <label class="login-label">Selecione seu nome</label>
-      <select id="userSelect"><option value="">Carregando equipe...</option></select>
-      <button class="btn-login" onclick="setLoggedUser()">ENTRAR NO SISTEMA</button>
+  <!-- Desktop Sidebar -->
+  <nav id="desktopSidebar">
+    <div class="dsb-logo">
+      <div class="dsb-logo-icon"><i class="fas fa-wifi"></i></div>
+      <div class="dsb-logo-title">MHNET</div>
+      <div class="dsb-logo-sub">Gestor de Vendas</div>
     </div>
-  </div>
-
-  <!-- ==================== HEADER ==================== -->
-  <header id="header" class="hidden">
-    <div class="header-top">
-      <div>
-        <div class="header-greeting">Olá,</div>
-        <div class="header-name" id="userInfo">...</div>
-      </div>
-      <div class="header-actions">
-        <button id="btnAdminSettings" class="header-btn hidden" onclick="abrirConfiguracoes()"><i class="fas fa-cog"></i></button>
-        <button class="header-btn" onclick="logout()"><i class="fas fa-power-off"></i></button>
-      </div>
+    <div class="dsb-nav">
+      <div class="dsb-section">Principal</div>
+      <div class="dsb-item on" onclick="navegarPara('dashboard')"><i class="fas fa-home"></i> Início</div>
+      <div class="dsb-item" onclick="verTodosLeads()"><i class="fas fa-address-book"></i> Carteira</div>
+      <div class="dsb-item" onclick="navegarPara('cadastroLead')"><i class="fas fa-user-plus"></i> Novo Lead</div>
+      <div class="dsb-section">Módulos</div>
+      <div class="dsb-item" onclick="navegarPara('ftta')"><i class="fas fa-network-wired"></i> FTTA</div>
+      <div class="dsb-item" onclick="abrirIndicadores()"><i class="fas fa-chart-line"></i> Indicadores</div>
+      <div class="dsb-item" onclick="navegarPara('tarefas')"><i class="fas fa-check-square"></i> Tarefas</div>
+      <div class="dsb-item" onclick="navegarPara('materiais')"><i class="fas fa-folder-open"></i> Materiais</div>
+      <div class="dsb-item" onclick="navegarPara('concorrentes')"><i class="fas fa-binoculars"></i> Concorrentes</div>
+      <div class="dsb-item" onclick="navegarPara('objecoes')"><i class="fas fa-shield-alt"></i> Objeções</div>
+      <div class="dsb-section">Pessoal</div>
+      <div class="dsb-item" onclick="navegarPara('faltas')"><i class="fas fa-calendar-times"></i> Faltas</div>
+      <div class="dsb-item" onclick="consultarPlanosIA()"><i class="fas fa-robot"></i> Chat IA</div>
     </div>
-    <div class="header-chips">
-      <div class="header-chip"><span class="dot"></span> Online</div>
-      <div class="header-chip"><i class="far fa-calendar"></i> <span id="headerDate">--/--</span></div>
-      <div class="header-chip"><i class="fas fa-bolt"></i> <span id="statLeads">0</span> hoje</div>
+    <div class="dsb-user">
+      <strong id="dsb-username">...</strong>
+      <span onclick="logout()" style="cursor:pointer;color:rgba(255,255,255,.4);font-size:.7rem;"><i class="fas fa-sign-out-alt"></i> Sair</span>
     </div>
-  </header>
-
-  <!-- ==================== SCROLL CONTENT ==================== -->
-  <main id="mainScroll" class="hidden">
-
-    <!-- DASHBOARD -->
-    <div id="dashboard" class="page active">
-      <div id="adminPanel" class="admin-banner hidden">
-        <div class="admin-badge"><i class="fas fa-crown"></i><span>Gestor Admin</span></div>
-        <div class="admin-btns">
-          <button class="admin-btn" onclick="gerirEquipe('list')">Equipe</button>
-          <button class="admin-btn" onclick="abrirTransferenciaEmLote()">Transferir</button>
-        </div>
-      </div>
-
-      <div class="funnel-card" onclick="abrirIndicadores()">
-        <div class="funnel-icon"><i class="fas fa-chart-line"></i></div>
-        <div class="funnel-text flex-1">
-          <div class="label">Performance do Mês</div>
-          <div class="value">Ver Funil de Vendas</div>
-        </div>
-        <div class="funnel-arrow"><i class="fas fa-chevron-right"></i></div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-tile" onclick="filtrarLeadsHoje()">
-          <div class="stat-num" id="statLeadsBody">0</div>
-          <div class="stat-lbl">Leads Hoje</div>
-        </div>
-        <div class="stat-tile accent" onclick="verTodosLeads()">
-          <div class="stat-icon"><i class="fas fa-address-book"></i></div>
-          <div class="stat-lbl">Minha Carteira</div>
-        </div>
-      </div>
-
-      <p class="section-label">Ferramentas</p>
-      <div class="quick-grid">
-        <div class="quick-item" onclick="navegarPara('tarefas')">
-          <div class="quick-icon indigo"><i class="fas fa-check-square"></i></div>
-          <div class="quick-lbl">Tarefas</div>
-        </div>
-        <div class="quick-item" onclick="navegarPara('faltas')">
-          <div class="quick-icon red"><i class="fas fa-calendar-times"></i></div>
-          <div class="quick-lbl">Faltas</div>
-        </div>
-        <div class="quick-item" onclick="navegarPara('materiais')">
-          <div class="quick-icon orange"><i class="fas fa-folder-open"></i></div>
-          <div class="quick-lbl">Materiais</div>
-        </div>
-        <div class="quick-item" onclick="navegarPara('objecoes')">
-          <div class="quick-icon teal"><i class="fas fa-shield-alt"></i></div>
-          <div class="quick-lbl">Objeções</div>
-        </div>
-      </div>
-
-      <button class="cta-btn" onclick="navegarPara('cadastroLead')">
-        <div class="cta-left">
-          <div class="cta-dot"><i class="fas fa-user-plus"></i></div>
-          <div class="cta-texts"><div class="sub">Cadastrar</div><div class="main">Novo Cliente</div></div>
-        </div>
-        <i class="fas fa-chevron-right cta-arrow"></i>
-      </button>
-
-      <div class="stats-row">
-        <button onclick="gerarCoachIA()" class="stat-tile" style="background:#faf5ff; border-color:#e9d5ff;">
-          <div style="font-size:1.3rem; margin-bottom:4px;">🏆</div>
-          <div class="stat-lbl" style="color:#7c3aed;">Coach IA</div>
-        </button>
-        <button onclick="consultarPlanosIA()" class="stat-tile" style="background:#eff6ff; border-color:#bfdbfe;">
-          <div style="font-size:1.3rem; margin-bottom:4px;">🤖</div>
-          <div class="stat-lbl" style="color:#1d4ed8;">Chat IA</div>
-        </button>
-      </div>
-
-      <div id="lembreteBanner" onclick="filtrarRetornos()">
-        <div class="lemb-icon"><i class="fas fa-bell"></i></div>
-        <div class="lemb-text flex-1">
-          <div class="t1">Atenção!</div>
-          <div class="t2">Você tem retornos pendentes hoje.</div>
-        </div>
-        <i class="fas fa-chevron-right" style="color:var(--warning); font-size:.8rem;"></i>
-      </div>
-    </div>
-
-    <!-- GESTÃO DE LEADS -->
-    <div id="gestaoLeads" class="page">
-      <div class="page-header">
-        <button class="page-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-        <h2 class="page-title">Carteira</h2>
-        <button onclick="carregarLeads(true)" style="margin-left:auto; background:none; color:var(--navy); font-size:1rem; padding:4px;"><i class="fas fa-sync-alt"></i></button>
-      </div>
-      <div class="filter-scroll">
-        <button class="filter-tag on" id="ftTodos" onclick="filtrarPorStatus('Todos',this)">Todos</button>
-        <button class="filter-tag" onclick="filtrarPorStatus('Novo',this)">Novos</button>
-        <button class="filter-tag" onclick="filtrarPorStatus('Agendado',this)">Agendados</button>
-        <button class="filter-tag" onclick="filtrarPorStatus('Negociação',this)">Negociação</button>
-        <button class="filter-tag" onclick="filtrarPorStatus('Venda Fechada',this)">Fechados</button>
-      </div>
-      <div class="search-wrap">
-        <i class="fas fa-search"></i>
-        <input id="searchLead" placeholder="Buscar por nome, bairro..." onkeyup="renderLeads()">
-      </div>
-      <div id="listaLeadsGestao"></div>
-    </div>
-
-    <!-- CADASTRO LEAD -->
-    <div id="cadastroLead" class="page">
-      <div class="page-header">
-        <button class="page-back" onclick="cancelarCadastro()"><i class="fas fa-arrow-left"></i></button>
-        <h2 class="page-title" id="cadastroTitle">Novo Lead</h2>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title"><i class="fas fa-user"></i> Dados do Cliente</div>
-        <div class="field"><label>Nome Completo</label><input id="leadNome" type="text" placeholder="Ex: João da Silva"></div>
-        <div class="field"><label>WhatsApp / Telefone</label><input id="leadTelefone" type="tel" placeholder="Ex: 51 99999-9999"></div>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title"><i class="fas fa-map-marker-alt"></i> Localização</div>
-        <div class="field"><label>Endereço</label><input id="leadEndereco" type="text" placeholder="Rua e número"></div>
-        <div class="field-row">
-          <div class="field"><label>Bairro</label><input id="leadBairro" type="text"></div>
-          <div class="field"><label>Cidade</label><input id="leadCidade" type="text" value="Lajeado"></div>
-        </div>
-        <button class="gps-btn" onclick="buscarEnderecoGPS()"><i class="fas fa-crosshairs"></i> Usar GPS</button>
-      </div>
-
-      <div class="form-section">
-        <div class="form-section-title"><i class="fas fa-tag"></i> Qualificação</div>
-        <div class="field">
-          <label>Provedor Atual</label>
-          <input id="leadProvedor" type="text" placeholder="Ex: Vero, Claro...">
-        </div>
-        <div class="field">
-          <label>Interesse</label>
-          <select id="leadInteresse">
-            <option value="Alto">🔥 Alto</option>
-            <option value="Médio" selected>😐 Médio</option>
-            <option value="Baixo">❄️ Baixo</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Status</label>
-          <select id="leadStatus">
-            <option value="Novo">Novo</option>
-            <option value="Agendado">Agendado</option>
-            <option value="Negociação">Negociação</option>
-            <option value="Venda Fechada">Venda Fechada</option>
-            <option value="Sem Interesse">Sem Interesse</option>
-          </select>
-        </div>
-        <div class="field" id="divEncaminhar" style="display:none;">
-          <label>Encaminhar para</label>
-          <select id="leadVendedorDestino"><option value="">Nenhum</option></select>
-        </div>
-        <div class="field">
-          <label>Observações</label>
-          <textarea id="leadObs" placeholder="Detalhes da abordagem..."></textarea>
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-navy" onclick="enviarLead()"><i class="fas fa-save"></i> Salvar Lead</button>
-        <button class="btn btn-ghost" onclick="cancelarCadastro()">Cancelar</button>
-      </div>
-    </div>
-
-    <!-- TAREFAS -->
-    <div id="tarefas" class="page">
-      <div class="tasks-head">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <button class="page-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-          <h2 class="page-title" style="margin:0;">Tarefas</h2>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="limparTarefasConcluidas()"><i class="fas fa-broom"></i></button>
-          <button onclick="abrirModalTarefa()" style="width:36px;height:36px;background:var(--navy);color:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="fas fa-plus"></i></button>
-        </div>
-      </div>
-      <button onclick="abrirCalendario()" class="btn btn-ghost" style="margin-bottom:16px;font-size:.78rem;gap:6px;"><i class="fas fa-calendar-alt" style="color:var(--navy);"></i> Abrir Google Calendar</button>
-      <div id="listaTarefasContainer"></div>
-    </div>
-
-    <!-- FALTAS -->
-    <div id="faltas" class="page">
-      <div class="page-header">
-        <button class="page-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-        <h2 class="page-title">Justificativa</h2>
-        <button onclick="verHistoricoFaltas()" style="margin-left:auto;background:none;color:var(--navy);font-size:.75rem;font-weight:700;">Histórico</button>
-      </div>
-
-      <div id="formFaltaContainer">
-        <div class="form-section">
-          <div class="form-section-title"><i class="fas fa-calendar-alt"></i> Ocorrência</div>
-          <div class="field"><label>Data</label><input type="date" id="faltaData"></div>
-          <div class="field">
-            <label>Tipo</label>
-            <select id="faltaMotivo">
-              <option value="">Selecione...</option>
-              <option>FOLGA PROGRAMADA (BANCO DE HORAS)</option>
-              <option>CONSULTA MÉDICA</option>
-              <option>SOLICITAÇÃO DE SAIDA EMERGENCIA</option>
-              <option>ENCAMINHAMENTO DE ATESTADO</option>
-              <option>ENCAMINHAMENTO DE COMPARECIMENTO</option>
-              <option>FALTA SEM JUSTIFICATIVA</option>
-              <option>AJUSTE DE PONTO</option>
-              <option>BENEFÍCIO - DAY OFF</option>
-              <option>PROBLEMAS NO APLICATIVO</option>
-              <option>OUTROS</option>
-            </select>
-          </div>
-          <div class="field"><label>Observação</label><textarea id="faltaObs" placeholder="Detalhes..."></textarea></div>
-          <div class="field">
-            <label>Anexo (opcional)</label>
-            <input type="file" id="faltaArquivo" style="font-size:.82rem;color:var(--text-2);">
-          </div>
-        </div>
-        <button class="btn btn-danger" onclick="enviarJustificativa()"><i class="fas fa-paper-plane"></i> ENVIAR SOLICITAÇÃO</button>
-      </div>
-
-      <div id="historicoFaltasContainer" class="hidden" style="margin-top:20px;">
-        <button onclick="ocultarHistoricoFaltas()" style="background:none;color:var(--navy);font-size:.78rem;font-weight:700;margin-bottom:16px;"><i class="fas fa-arrow-left"></i> Voltar ao Formulário</button>
-        <div id="listaHistoricoFaltas"></div>
-      </div>
-    </div>
-
-    <!-- INDICADORES -->
-    <div id="indicadores" class="page">
-      <div class="page-header">
-        <button class="page-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-        <h2 class="page-title">Indicadores</h2>
-      </div>
-      <div class="ind-month"><i class="far fa-calendar"></i> <span id="indMes">--</span></div>
-      <div class="ind-card">
-        <div class="ind-row"><span class="ind-label">Total de Leads</span><span class="ind-val" id="funnelLeads">0</span></div>
-        <div class="progress-bar"><div class="progress-fill" id="pbLeads" style="width:0%"></div></div>
-      </div>
-      <div class="ind-card">
-        <div class="ind-row"><span class="ind-label">Vendas Fechadas</span><span class="ind-val" id="indRealizado">0</span></div>
-        <div class="progress-bar"><div class="progress-fill" id="pbVendas" style="width:0%;background:linear-gradient(90deg,var(--success),#34d399)"></div></div>
-      </div>
-      <div class="ind-card">
-        <div class="ind-row"><span class="ind-label">Em Negociação</span><span class="ind-val" id="indNegociacao">0</span></div>
-        <div class="progress-bar"><div class="progress-fill" id="pbNeg" style="width:0%;background:linear-gradient(90deg,var(--warning),#fbbf24)"></div></div>
-      </div>
-      <div id="iaMsgBox" class="ia-msg-box hidden"><i class="fas fa-robot"></i><span id="iaMsgTxt"></span></div>
-    </div>
-
-    <!-- MATERIAIS -->
-    <div id="materiais" class="page">
-      <div class="page-header">
-        <button id="btnVoltarMateriais" class="page-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-        <h2 class="page-title" id="tituloMateriais">Materiais</h2>
-      </div>
-      <div class="search-wrap" style="margin-bottom:16px;">
-        <i class="fas fa-search"></i>
-        <input id="searchMateriais" placeholder="Buscar material..." oninput="buscarMateriais()">
-      </div>
-      <div class="filter-scroll" style="margin-bottom:16px;">
-        <button class="filter-tag on" onclick="filtrarMateriaisBtn('Todos',this)">Todos</button>
-        <button class="filter-tag" onclick="filtrarMateriaisBtn('Fibra',this)">Fibra</button>
-        <button class="filter-tag" onclick="filtrarMateriaisBtn('Móvel',this)">Móvel</button>
-        <button class="filter-tag" onclick="filtrarMateriaisBtn('Kids',this)">Kids</button>
-        <button class="filter-tag" onclick="filtrarMateriaisBtn('Câmera',this)">Câmera</button>
-        <button class="filter-tag" onclick="filtrarMateriaisBtn('Play',this)">Play</button>
-      </div>
-      <div id="materiaisGrid" class="mat-grid"></div>
-    </div>
-
-    <!-- OBJEÇÕES -->
-    <div id="objecoes" class="page">
-      <div class="page-header">
-        <button class="page-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-        <h2 class="page-title">Combater Objeção</h2>
-      </div>
-      <div class="form-section">
-        <div class="form-section-title"><i class="fas fa-shield-alt"></i> IA Anti-Objeção</div>
-        <div class="field"><label>Qual foi a objeção do cliente?</label><textarea id="inputObjecaoGeral" rows="3" placeholder="Ex: Já tenho internet e estou satisfeito..."></textarea></div>
-        <button class="btn btn-navy" onclick="combaterObjecaoGeral()"><i class="fas fa-magic"></i> Gerar Resposta</button>
-        <div id="resultadoObjecaoGeral" class="obj-result" style="margin-top:12px;display:none;"></div>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- ==================== BOTTOM NAV ==================== -->
-  <nav id="bottomNav" class="hidden">
-    <div class="nav-item on" id="navDash" onclick="navegarPara('dashboard')"><i class="fas fa-home"></i>Início</div>
-    <div class="nav-item" id="navLeads" onclick="verTodosLeads()"><i class="fas fa-address-book"></i>Carteira</div>
-    <div class="nav-fab" onclick="navegarPara('cadastroLead')"><i class="fas fa-plus"></i></div>
-    <div class="nav-item" id="navTasks" onclick="navegarPara('tarefas')"><i class="fas fa-check-square"></i>Tarefas</div>
-    <div class="nav-item" id="navInd" onclick="abrirIndicadores()"><i class="fas fa-chart-line"></i>Funil</div>
   </nav>
 
-  <!-- ==================== LEAD MODAL ==================== -->
-  <div id="leadModal" class="modal-backdrop">
-    <div class="modal-sheet" style="position:relative;">
-      <div class="modal-handle"></div>
-      <button class="modal-close" onclick="fecharLeadModal()"><i class="fas fa-times"></i></button>
+  <!-- Mobile App Shell -->
+  <div id="app">
 
-      <div class="modal-lead-name" id="modalLeadNome">-</div>
-      <div class="modal-lead-loc"><i class="fas fa-map-marker-alt" style="color:var(--text-3);margin-right:4px;"></i><span id="modalLeadBairro">-</span> · <span id="modalLeadCidade">-</span></div>
+    <!-- LOADER -->
+    <div id="loader"><div class="loader-ring"></div><div class="loader-text">Aguarde</div></div>
 
-      <div class="modal-info-grid">
-        <div class="modal-info-tile">
-          <div class="modal-info-lbl">Telefone</div>
-          <div class="modal-info-val" id="modalLeadTelefone">-</div>
+    <!-- OFFLINE -->
+    <div id="offlineBanner"><i class="fas fa-wifi-slash"></i> Sem conexão — dados salvos offline</div>
+
+    <!-- LOGIN -->
+    <div id="loginScreen">
+      <div class="login-brand">
+        <div class="login-brand-icon"><i class="fas fa-wifi"></i></div>
+        <div class="login-brand-text"><h1>MHNET</h1><p>Gestor de Vendas Externas</p></div>
+      </div>
+      <div class="login-card">
+        <label class="login-label">Selecione seu nome</label>
+        <select id="userSelect"><option value="">Carregando...</option></select>
+        <button class="btn-login" onclick="setLoggedUser()">ENTRAR NO SISTEMA</button>
+      </div>
+    </div>
+
+    <!-- HEADER -->
+    <header id="header" class="hidden">
+      <div class="hdr-top">
+        <div>
+          <div class="hdr-greeting">Olá,</div>
+          <div class="hdr-name" id="userInfo">...</div>
         </div>
-        <div class="modal-info-tile">
-          <div class="modal-info-lbl">Provedor</div>
-          <div class="modal-info-val" id="modalLeadProvedor">-</div>
-        </div>
-      </div>
-
-      <div class="modal-acts">
-        <div class="modal-act blue" id="btnModalWhats"><i class="fab fa-whatsapp"></i> WhatsApp</div>
-        <div class="modal-act green" onclick="marcarVendaFechada()"><i class="fas fa-trophy"></i> Venda Fechada</div>
-        <div class="modal-act purple" onclick="editarLeadAtual()"><i class="fas fa-edit"></i> Editar Lead</div>
-        <div class="modal-act red" onclick="excluirLead()"><i class="fas fa-trash"></i> Excluir</div>
-      </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="fas fa-sliders-h"></i> Atualizar Status</div>
-        <select id="modalStatusFunil" class="field input" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:.95rem;">
-          <option value="Novo">Novo</option>
-          <option value="Agendado">Agendado</option>
-          <option value="Negociação">Negociação</option>
-          <option value="Venda Fechada">Venda Fechada</option>
-          <option value="Sem Interesse">Sem Interesse</option>
-        </select>
-      </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="fas fa-calendar-check"></i> Agendamento</div>
-        <div class="date-row">
-          <input type="date" id="agendarData" style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.9rem;width:100%;">
-          <input type="time" id="agendarHora" style="flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.9rem;width:100%;">
+        <div class="hdr-actions">
+          <button id="btnAdminSettings" class="hdr-btn hidden" onclick="abrirConfiguracoes()"><i class="fas fa-cog"></i></button>
+          <button class="hdr-btn" onclick="logout()"><i class="fas fa-power-off"></i></button>
         </div>
       </div>
+      <div class="hdr-chips">
+        <div class="hdr-chip"><span class="dot"></span> Online</div>
+        <div class="hdr-chip"><i class="far fa-calendar"></i> <span id="headerDate">--</span></div>
+        <div class="hdr-chip"><i class="fas fa-bolt"></i> <span id="statLeads">0</span> hoje</div>
+      </div>
+    </header>
 
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="fas fa-sticky-note"></i> Observações</div>
-        <textarea id="modalLeadObs" rows="3" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.88rem;" placeholder="Anotações..."></textarea>
+    <!-- MAIN SCROLL -->
+    <main id="mainScroll" class="hidden">
+
+      <!-- ============ DASHBOARD ============ -->
+      <div id="dashboard" class="page active">
+        <div id="adminPanel" class="admin-bar hidden">
+          <div class="admin-badge"><i class="fas fa-crown"></i> Gestor Admin</div>
+          <div class="admin-btns">
+            <button class="admin-btn-sm" onclick="gerirEquipe('list')">Equipe</button>
+            <button class="admin-btn-sm" onclick="abrirTransferenciaEmLote()">Transferir</button>
+          </div>
+        </div>
+
+        <div class="perf-card" onclick="abrirIndicadores()">
+          <div class="perf-icon"><i class="fas fa-chart-line"></i></div>
+          <div class="perf-texts flex-1">
+            <div class="lbl">Performance do Mês</div>
+            <div class="val">Ver Funil de Vendas</div>
+          </div>
+          <i class="fas fa-chevron-right" style="color:var(--text-3);font-size:.8rem;"></i>
+        </div>
+
+        <div class="stats-2">
+          <div class="stat-tile" onclick="filtrarLeadsHoje()">
+            <div class="stat-num" id="statLeadsBody">0</div>
+            <div class="stat-lbl">Leads Hoje</div>
+          </div>
+          <div class="stat-tile accent" onclick="verTodosLeads()">
+            <i class="fas fa-address-book"></i>
+            <div class="stat-lbl">Minha Carteira</div>
+          </div>
+        </div>
+
+        <p class="sec-lbl">Módulos</p>
+        <div class="quick4">
+          <div class="q-item" onclick="navegarPara('tarefas')"><div class="q-icon indigo"><i class="fas fa-check-square"></i></div><div class="q-lbl">Tarefas</div></div>
+          <div class="q-item" onclick="navegarPara('faltas')"><div class="q-icon red"><i class="fas fa-calendar-times"></i></div><div class="q-lbl">Faltas</div></div>
+          <div class="q-item" onclick="navegarPara('materiais')"><div class="q-icon orange"><i class="fas fa-folder-open"></i></div><div class="q-lbl">Materiais</div></div>
+          <div class="q-item" onclick="navegarPara('objecoes')"><div class="q-icon teal"><i class="fas fa-shield-alt"></i></div><div class="q-lbl">Objeções</div></div>
+          <div class="q-item" onclick="navegarPara('concorrentes')"><div class="q-icon sky"><i class="fas fa-binoculars"></i></div><div class="q-lbl">Concorr.</div></div>
+          <div class="q-item" onclick="consultarPlanosIA()"><div class="q-icon purple"><i class="fas fa-robot"></i></div><div class="q-lbl">Chat IA</div></div>
+          <div class="q-item" onclick="gerarCoachIA()"><div class="q-icon pink"><i class="fas fa-trophy"></i></div><div class="q-lbl">Coach</div></div>
+          <div class="q-item" onclick="navegarPara('ftta')"><div class="q-icon green"><i class="fas fa-network-wired"></i></div><div class="q-lbl">FTTA</div></div>
+        </div>
+
+        <button class="cta-strip" onclick="navegarPara('cadastroLead')">
+          <div class="cta-l">
+            <div class="cta-dot"><i class="fas fa-user-plus"></i></div>
+            <div class="cta-texts"><div class="sub">Cadastrar</div><div class="main">Novo Cliente</div></div>
+          </div>
+          <i class="fas fa-chevron-right" style="opacity:.6;"></i>
+        </button>
+
+        <p class="sec-lbl" style="margin-top:6px;">FTTA — Zonas</p>
+        <div class="ftta-cards">
+          <div class="ftta-card" onclick="navegarPara('ftta');setFttaTab('lajeado')">
+            <div class="ftta-badge laj">LJ</div>
+            <div class="ftta-texts"><div class="t">FTTA Lajeado</div><div class="s">Ver registros</div></div>
+          </div>
+          <div class="ftta-card" onclick="navegarPara('ftta');setFttaTab('estrela')">
+            <div class="ftta-badge est">ES</div>
+            <div class="ftta-texts"><div class="t">FTTA Estrela</div><div class="s">Ver registros</div></div>
+          </div>
+          <div class="ftta-card" onclick="navegarPara('ftta');setFttaTab('prospeccao')" style="grid-column:span 2;">
+            <div class="ftta-badge pro">PR</div>
+            <div class="ftta-texts"><div class="t">FTTA Prospecção</div><div class="s">Leads em prospecção ativa</div></div>
+          </div>
+        </div>
+
+        <div id="lembreteBanner" onclick="filtrarRetornos()">
+          <div class="lb-icon"><i class="fas fa-bell"></i></div>
+          <div style="flex:1;"><div style="font-size:.8rem;font-weight:700;color:#92400e;">Atenção!</div><div style="font-size:.7rem;color:#b45309;">Você tem retornos hoje.</div></div>
+          <i class="fas fa-chevron-right" style="color:var(--warning);font-size:.75rem;"></i>
+        </div>
       </div>
 
-      <div id="adminEncaminharArea" class="modal-section hidden">
-        <div class="modal-section-title"><i class="fas fa-share"></i> Encaminhar Lead</div>
-        <select id="modalLeadDestino" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.9rem;margin-bottom:8px;"><option value="">Selecione vendedor...</option></select>
-        <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="encaminharLeadModal()"><i class="fas fa-share-alt"></i> Encaminhar</button>
+      <!-- ============ GESTÃO DE LEADS ============ -->
+      <div id="gestaoLeads" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">Carteira</h2>
+          <button onclick="carregarLeads(true)" style="margin-left:auto;color:var(--navy);padding:4px;font-size:.95rem;"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div class="filter-scroll">
+          <button class="ftag on" id="ftTodos" onclick="filtrarPorStatus('Todos',this)">Todos</button>
+          <button class="ftag" onclick="filtrarPorStatus('Novo',this)">Novos</button>
+          <button class="ftag" onclick="filtrarPorStatus('Agendado',this)">Agendados</button>
+          <button class="ftag" onclick="filtrarPorStatus('Negociação',this)">Negociação</button>
+          <button class="ftag" onclick="filtrarPorStatus('Venda Fechada',this)">Fechados</button>
+        </div>
+        <div class="search-wrap">
+          <i class="fas fa-search"></i>
+          <input class="search-input" id="searchLead" placeholder="Buscar nome, bairro..." oninput="renderLeads()">
+        </div>
+        <div id="listaLeadsGestao" class="lead-list-wrap"></div>
       </div>
 
-      <div id="sectionTarefasLead" class="modal-section hidden">
-        <div class="modal-section-title"><i class="fas fa-tasks"></i> Tarefas vinculadas</div>
-        <div id="listaTarefasLead"></div>
+      <!-- ============ FTTA ============ -->
+      <div id="ftta" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">FTTA</h2>
+          <button onclick="carregarFtta()" style="margin-left:auto;color:var(--navy);padding:4px;font-size:.95rem;"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div class="filter-scroll" style="margin-bottom:14px;">
+          <button class="ftag on" id="fttaTabLaj" onclick="setFttaTab('lajeado')">Lajeado</button>
+          <button class="ftag" id="fttaTabEst" onclick="setFttaTab('estrela')">Estrela</button>
+          <button class="ftag" id="fttaTabPro" onclick="setFttaTab('prospeccao')">Prospecção</button>
+        </div>
+        <div class="search-wrap">
+          <i class="fas fa-search"></i>
+          <input class="search-input" id="searchFtta" placeholder="Buscar..." oninput="filtrarFtta()">
+        </div>
+        <div id="listaFtta" class="lead-list-wrap"></div>
       </div>
 
-      <div class="modal-section">
-        <div class="modal-section-title"><i class="fas fa-shield-alt"></i> Objeção</div>
-        <textarea id="inputObjecaoLead" rows="2" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.88rem;margin-bottom:8px;" placeholder="Objeção do cliente..."></textarea>
-        <button class="btn btn-ghost btn-sm" style="margin-bottom:8px;" onclick="combaterObjecaoLead()"><i class="fas fa-magic"></i> IA Responder</button>
-        <textarea id="respostaObjecaoLead" rows="2" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.88rem;margin-bottom:8px;" placeholder="Resposta IA..."></textarea>
-        <button class="btn btn-ghost btn-sm" onclick="salvarObjecaoLead()"><i class="fas fa-save"></i> Salvar Objeção</button>
+      <!-- ============ CADASTRO LEAD ============ -->
+      <div id="cadastroLead" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="cancelarCadastro()"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title" id="cadastroTitle">Novo Lead</h2>
+        </div>
+
+        <div class="form-sec">
+          <div class="form-sec-title"><i class="fas fa-user"></i> Dados do Cliente</div>
+          <div class="field"><label>Nome Completo</label><input class="f-input" id="leadNome" type="text" placeholder="Ex: João da Silva"></div>
+          <div class="field"><label>WhatsApp / Telefone</label><input class="f-input" id="leadTelefone" type="tel" placeholder="Ex: 51 99999-9999"></div>
+        </div>
+
+        <div class="form-sec">
+          <div class="form-sec-title"><i class="fas fa-map-marker-alt"></i> Localização</div>
+          <div class="field"><label>Endereço (Rua)</label><input class="f-input" id="leadEndereco" type="text" placeholder="Nome da rua"></div>
+          <div class="field-row">
+            <div class="field"><label>Número</label><input class="f-input" id="leadNumero" type="text" placeholder="Ex: 123"></div>
+            <div class="field"><label>Complemento</label><input class="f-input" id="leadComplemento" type="text" placeholder="Apto, casa..."></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Bairro</label><input class="f-input" id="leadBairro" type="text"></div>
+            <div class="field"><label>Cidade</label><input class="f-input" id="leadCidade" type="text" value="Lajeado"></div>
+          </div>
+          <button class="gps-btn" onclick="buscarEnderecoGPS()"><i class="fas fa-crosshairs"></i> Preencher com GPS</button>
+        </div>
+
+        <div class="form-sec">
+          <div class="form-sec-title"><i class="fas fa-tag"></i> Qualificação</div>
+          <div class="field"><label>Provedor Atual</label><input class="f-input" id="leadProvedor" type="text" placeholder="Ex: Vero, Claro, NET..."></div>
+          <div class="field-row">
+            <div class="field"><label>Valor do Plano (R$)</label><input class="f-input" id="leadValorPlano" type="number" placeholder="Ex: 89.90"></div>
+            <div class="field"><label>Plano Atual</label><input class="f-input" id="leadPlanoAtual" type="text" placeholder="Ex: 300 Mbps"></div>
+          </div>
+          <div class="field"><label>Fidelidade / Vence em</label><input class="f-input" id="leadFidelidade" type="date"></div>
+          <div class="field">
+            <label>Interesse</label>
+            <select class="f-input" id="leadInteresse">
+              <option value="Alto">🔥 Alto</option>
+              <option value="Médio" selected>😐 Médio</option>
+              <option value="Baixo">❄️ Baixo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select class="f-input" id="leadStatus">
+              <option value="Novo">Novo</option>
+              <option value="Agendado">Agendado</option>
+              <option value="Negociação">Negociação</option>
+              <option value="Venda Fechada">Venda Fechada</option>
+              <option value="Sem Interesse">Sem Interesse</option>
+            </select>
+          </div>
+          <div class="field" id="divEncaminhar" style="display:none;">
+            <label>Encaminhar para</label>
+            <select class="f-input" id="leadVendedorDestino"><option value="">Nenhum</option></select>
+          </div>
+        </div>
+
+        <div class="form-sec">
+          <div class="form-sec-title"><i class="fas fa-history"></i> Histórico / Observações</div>
+          <div class="field"><label>Nova Observação</label><textarea class="f-input" id="leadObs" placeholder="Detalhes da abordagem..."></textarea></div>
+          <div id="leadHistoricoContainer" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="flex-row">
+          <button class="btn btn-navy" style="flex:1;" onclick="enviarLead()"><i class="fas fa-save"></i> Salvar</button>
+          <button class="btn btn-ghost" style="flex:1;" onclick="cancelarCadastro()">Cancelar</button>
+        </div>
       </div>
 
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-navy" style="flex:1;" onclick="salvarEdicaoModal()"><i class="fas fa-save"></i> Salvar</button>
-        <button class="btn btn-ghost" style="flex:1;" onclick="fecharLeadModal()">Fechar</button>
+      <!-- ============ TAREFAS ============ -->
+      <div id="tarefas" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">Tarefas</h2>
+          <div style="margin-left:auto;display:flex;gap:7px;">
+            <button class="btn btn-ghost btn-sm" onclick="limparTarefasConcluidas()"><i class="fas fa-broom"></i></button>
+            <button onclick="abrirModalTarefa()" style="width:34px;height:34px;background:var(--navy);color:#fff;border-radius:9px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-plus"></i></button>
+          </div>
+        </div>
+        <button onclick="abrirCalendario()" class="btn btn-ghost" style="margin-bottom:14px;font-size:.77rem;"><i class="fas fa-calendar-alt" style="color:var(--navy);"></i> Google Calendar</button>
+        <div id="listaTarefasContainer"></div>
+      </div>
+
+      <!-- ============ FALTAS ============ -->
+      <div id="faltas" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">Justificativa</h2>
+          <button onclick="verHistoricoFaltas()" style="margin-left:auto;color:var(--navy);font-size:.75rem;font-weight:700;">Histórico</button>
+        </div>
+        <div id="formFaltaContainer">
+          <div class="form-sec">
+            <div class="form-sec-title"><i class="fas fa-calendar-alt"></i> Ocorrência</div>
+            <div class="field"><label>Data</label><input class="f-input" type="date" id="faltaData"></div>
+            <div class="field"><label>Tipo</label>
+              <select class="f-input" id="faltaMotivo">
+                <option value="">Selecione...</option>
+                <option>FOLGA PROGRAMADA (BANCO DE HORAS)</option>
+                <option>CONSULTA MÉDICA</option>
+                <option>SOLICITAÇÃO DE SAIDA EMERGENCIA</option>
+                <option>ENCAMINHAMENTO DE ATESTADO</option>
+                <option>ENCAMINHAMENTO DE COMPARECIMENTO</option>
+                <option>FALTA SEM JUSTIFICATIVA</option>
+                <option>AJUSTE DE PONTO</option>
+                <option>BENEFÍCIO - DAY OFF</option>
+                <option>PROBLEMAS NO APLICATIVO</option>
+                <option>OUTROS</option>
+              </select>
+            </div>
+            <div class="field"><label>Observação</label><textarea class="f-input" id="faltaObs" placeholder="Detalhes..."></textarea></div>
+            <div class="field"><label>Anexo (opcional)</label><input type="file" id="faltaArquivo" style="font-size:.82rem;color:var(--text-2);"></div>
+          </div>
+          <button class="btn btn-danger" onclick="enviarJustificativa()"><i class="fas fa-paper-plane"></i> ENVIAR SOLICITAÇÃO</button>
+        </div>
+        <div id="historicoFaltasContainer" class="hidden" style="margin-top:18px;">
+          <button onclick="ocultarHistoricoFaltas()" style="color:var(--navy);font-size:.77rem;font-weight:700;margin-bottom:14px;"><i class="fas fa-arrow-left"></i> Voltar</button>
+          <div id="listaHistoricoFaltas"></div>
+        </div>
+      </div>
+
+      <!-- ============ INDICADORES ============ -->
+      <div id="indicadores" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">Indicadores</h2>
+        </div>
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:14px;display:flex;align-items:center;gap:6px;"><i class="far fa-calendar"></i><span id="indMes">--</span></div>
+        <div class="ind-card">
+          <div class="ind-row"><span class="ind-label">Total de Leads</span><span class="ind-val" id="funnelLeads">0</span></div>
+          <div class="prog-bar"><div class="prog-fill" id="pbLeads" style="width:0%;background:linear-gradient(90deg,var(--navy-mid),var(--cyan))"></div></div>
+        </div>
+        <div class="ind-card">
+          <div class="ind-row"><span class="ind-label">Vendas Fechadas</span><span class="ind-val" id="indRealizado">0</span></div>
+          <div class="prog-bar"><div class="prog-fill" id="pbVendas" style="width:0%;background:linear-gradient(90deg,var(--success),#34d399)"></div></div>
+        </div>
+        <div class="ind-card">
+          <div class="ind-row"><span class="ind-label">Em Negociação</span><span class="ind-val" id="indNegociacao">0</span></div>
+          <div class="prog-bar"><div class="prog-fill" id="pbNeg" style="width:0%;background:linear-gradient(90deg,var(--warning),#fbbf24)"></div></div>
+        </div>
+        <div id="iaMsgBox" class="ai-resp-box hidden"><i class="fas fa-robot"></i> <span id="iaMsgTxt"></span></div>
+      </div>
+
+      <!-- ============ MATERIAIS ============ -->
+      <div id="materiais" class="page">
+        <div class="pg-hdr">
+          <button id="btnVoltarMateriais" class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title" id="tituloMateriais">Materiais</h2>
+        </div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fas fa-search"></i>
+          <input class="search-input" id="searchMateriais" placeholder="Buscar material..." oninput="buscarMateriais()">
+        </div>
+        <div class="filter-scroll" style="margin-bottom:14px;">
+          <button class="ftag on" onclick="filtrarMateriaisBtn('Todos',this)">Todos</button>
+          <button class="ftag" onclick="filtrarMateriaisBtn('Fibra',this)">Fibra</button>
+          <button class="ftag" onclick="filtrarMateriaisBtn('Móvel',this)">Móvel</button>
+          <button class="ftag" onclick="filtrarMateriaisBtn('Kids',this)">Kids</button>
+          <button class="ftag" onclick="filtrarMateriaisBtn('Câmera',this)">Câmeras</button>
+          <button class="ftag" onclick="filtrarMateriaisBtn('Play',this)">Play</button>
+        </div>
+        <div id="materiaisGrid" class="mat-grid"></div>
+      </div>
+
+      <!-- ============ CONCORRENTES ============ -->
+      <div id="concorrentes" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">Almanaque Concorrentes</h2>
+        </div>
+        <p style="font-size:.8rem;color:var(--text-3);margin-bottom:14px;">Selecione um concorrente para ver análise comparativa com MHNET.</p>
+        <div class="comp-grid" id="compGrid"></div>
+        <div id="compDetail" class="comp-detail hidden">
+          <div class="comp-detail-header">
+            <div id="compDetailLogo" class="comp-logo" style="width:46px;height:46px;"></div>
+            <div>
+              <div id="compDetailName" style="font-size:1rem;font-weight:800;color:var(--text-1);"></div>
+              <div id="compDetailType" style="font-size:.72rem;color:var(--text-3);"></div>
+            </div>
+          </div>
+          <div class="pros-cons">
+            <div class="pros-box">
+              <div class="pc-title">✅ Pontos Fortes</div>
+              <div id="compPros"></div>
+            </div>
+            <div class="cons-box">
+              <div class="pc-title">❌ Pontos Fracos</div>
+              <div id="compCons"></div>
+            </div>
+          </div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--text-2);margin-bottom:8px;">MHNET tem vantagem em:</div>
+          <div id="compMhnet" style="font-size:.8rem;color:var(--text-1);line-height:1.55;"></div>
+          <div class="sep"></div>
+          <div style="font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:8px;"><i class="fas fa-robot"></i> Análise IA em tempo real</div>
+          <textarea class="f-input" id="compAiQuestion" rows="2" placeholder="Pergunte algo específico sobre este concorrente..." style="margin-bottom:8px;"></textarea>
+          <button class="btn btn-navy btn-sm" style="width:100%;" onclick="analisarConcorrenteIA()"><i class="fas fa-magic"></i> Analisar com IA</button>
+          <div id="compAiResp" class="ai-resp-box hidden" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <!-- ============ OBJEÇÕES ============ -->
+      <div id="objecoes" class="page">
+        <div class="pg-hdr">
+          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="pg-title">Combater Objeção</h2>
+        </div>
+        <div class="form-sec">
+          <div class="form-sec-title"><i class="fas fa-shield-alt"></i> IA Anti-Objeção</div>
+          <div class="field"><label>Qual foi a objeção do cliente?</label><textarea class="f-input" id="inputObjecaoGeral" rows="3" placeholder="Ex: Já tenho internet e estou satisfeito..."></textarea></div>
+          <button class="btn btn-navy" onclick="combaterObjecaoGeral()"><i class="fas fa-magic"></i> Gerar Resposta com IA</button>
+          <div id="resultadoObjecaoGeral" class="ai-resp-box hidden" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- BOTTOM NAV -->
+    <nav id="bottomNav" class="hidden">
+      <div class="nav-i on" id="navDash" onclick="navegarPara('dashboard')"><i class="fas fa-home"></i>Início</div>
+      <div class="nav-i" id="navLeads" onclick="verTodosLeads()"><i class="fas fa-address-book"></i>Carteira</div>
+      <div class="nav-fab" onclick="navegarPara('cadastroLead')"><i class="fas fa-plus"></i></div>
+      <div class="nav-i" id="navTasks" onclick="navegarPara('tarefas')"><i class="fas fa-check-square"></i>Tarefas</div>
+      <div class="nav-i" id="navFtta" onclick="navegarPara('ftta')"><i class="fas fa-network-wired"></i>FTTA</div>
+    </nav>
+
+  </div><!-- end #app -->
+</div><!-- end #appWrapper -->
+
+<!-- ============ LEAD MODAL ============ -->
+<div id="leadModal" class="modal-back">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <button class="m-close" onclick="fecharLeadModal()"><i class="fas fa-times"></i></button>
+    <div class="modal-lead-name" id="modalLeadNome">-</div>
+    <div class="modal-lead-loc"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i><span id="modalLeadBairro">-</span> · <span id="modalLeadCidade">-</span></div>
+    <div class="modal-info-grid">
+      <div class="modal-info-tile"><div class="mit-lbl">Telefone</div><div class="mit-val" id="modalLeadTelefone">-</div></div>
+      <div class="modal-info-tile"><div class="mit-lbl">Provedor</div><div class="mit-val" id="modalLeadProvedor">-</div></div>
+      <div class="modal-info-tile"><div class="mit-lbl">Plano</div><div class="mit-val" id="modalLeadPlano">-</div></div>
+      <div class="modal-info-tile"><div class="mit-lbl">Valor</div><div class="mit-val" id="modalLeadValor">-</div></div>
+    </div>
+    <div id="modalFidelidadeBox" class="hidden" style="background:#fff7ed;border:1px solid #fde68a;border-radius:8px;padding:10px;margin-bottom:16px;font-size:.8rem;color:#92400e;font-weight:600;"></div>
+    <div class="modal-acts">
+      <div class="m-act blue" id="btnModalWhats"><i class="fab fa-whatsapp"></i> WhatsApp</div>
+      <div class="m-act green" onclick="marcarVendaFechada()"><i class="fas fa-trophy"></i> Venda Fechada</div>
+      <div class="m-act warn" id="btnModalCall"><i class="fas fa-phone"></i> Ligar</div>
+      <div class="m-act purple" onclick="editarLeadAtual()"><i class="fas fa-edit"></i> Editar</div>
+      <div class="m-act red" onclick="excluirLead()"><i class="fas fa-trash"></i> Excluir</div>
+      <div class="m-act" id="btnModalMap"><i class="fas fa-map-marker-alt"></i> Maps</div>
+    </div>
+    <div class="m-sec">
+      <div class="m-sec-title"><i class="fas fa-sliders-h"></i> Status</div>
+      <select id="modalStatusFunil" class="m-f-input" style="width:100%;">
+        <option value="Novo">Novo</option><option value="Agendado">Agendado</option>
+        <option value="Negociação">Negociação</option><option value="Venda Fechada">Venda Fechada</option>
+        <option value="Sem Interesse">Sem Interesse</option>
+      </select>
+    </div>
+    <div class="m-sec">
+      <div class="m-sec-title"><i class="fas fa-calendar-check"></i> Agendamento</div>
+      <div class="date-row">
+        <input type="date" id="agendarData" class="m-f-input">
+        <input type="time" id="agendarHora" class="m-f-input">
       </div>
     </div>
-  </div>
-
-  <!-- ==================== TASK MODAL ==================== -->
-  <div id="taskModal" class="modal2-backdrop">
-    <div class="modal2-card">
-      <div class="modal2-title">Nova Tarefa</div>
-      <div class="field"><label>Descrição</label><input id="taskDesc" placeholder="O que precisa ser feito?"></div>
-      <div class="field"><label>Data Limite</label><input type="date" id="taskDate"></div>
-      <div class="field"><label>Vincular a Lead</label><select id="taskLeadSelect"><option value="">Nenhum</option></select></div>
-      <div style="display:flex;gap:8px;margin-top:4px;">
-        <button class="btn btn-navy" style="flex:1;" onclick="salvarTarefa()">Salvar</button>
-        <button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById('taskModal').classList.remove('open')">Cancelar</button>
-      </div>
+    <div class="m-sec">
+      <div class="m-sec-title"><i class="fas fa-sticky-note"></i> Observações</div>
+      <textarea id="modalLeadObs" class="m-f-input" rows="3" placeholder="Anotações..."></textarea>
+    </div>
+    <div id="adminEncaminharArea" class="m-sec hidden">
+      <div class="m-sec-title"><i class="fas fa-share"></i> Encaminhar Lead</div>
+      <select id="modalLeadDestino" class="m-f-input" style="width:100%;margin-bottom:8px;"><option value="">Selecione...</option></select>
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="encaminharLeadModal()"><i class="fas fa-share-alt"></i> Encaminhar</button>
+    </div>
+    <div id="sectionTarefasLead" class="m-sec hidden">
+      <div class="m-sec-title"><i class="fas fa-tasks"></i> Tarefas vinculadas</div>
+      <div id="listaTarefasLead"></div>
+    </div>
+    <div class="m-sec">
+      <div class="m-sec-title"><i class="fas fa-shield-alt"></i> Objeção</div>
+      <textarea id="inputObjecaoLead" class="m-f-input" rows="2" placeholder="Objeção do cliente..." style="margin-bottom:7px;"></textarea>
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:7px;width:100%;" onclick="combaterObjecaoLead()"><i class="fas fa-magic"></i> IA Responder</button>
+      <textarea id="respostaObjecaoLead" class="m-f-input" rows="2" placeholder="Resposta IA..." style="margin-bottom:7px;"></textarea>
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="salvarObjecaoLead()"><i class="fas fa-save"></i> Salvar Objeção</button>
+    </div>
+    <div class="flex-row">
+      <button class="btn btn-navy" style="flex:1;" onclick="salvarEdicaoModal()"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="fecharLeadModal()">Fechar</button>
     </div>
   </div>
+</div>
 
-  <!-- ==================== CONFIG MODAL ==================== -->
-  <div id="configModal">
-    <div class="config-sheet">
-      <div class="modal-handle"></div>
-      <div class="modal2-title">Configurações</div>
-      <div class="field"><label>Nome do Vendedor</label><input id="cfgNomeVendedor" placeholder="Nome completo"></div>
-      <div class="field"><label>Meta de Vendas</label><input id="cfgMeta" type="number" placeholder="Ex: 20"></div>
-      <div class="config-row">
-        <button class="btn btn-navy" style="flex:1;" onclick="gerirEquipe('add')"><i class="fas fa-user-plus"></i> Adicionar</button>
-        <button class="btn btn-danger" style="flex:1;" onclick="gerirEquipe('remove')"><i class="fas fa-user-minus"></i> Remover</button>
-      </div>
-      <button class="btn btn-ghost" style="margin-top:12px;" onclick="document.getElementById('configModal').classList.remove('open')">Fechar</button>
+<!-- TASK MODAL -->
+<div id="taskModal" class="modal2-back">
+  <div class="modal2-card">
+    <div class="m2-title">Nova Tarefa</div>
+    <div class="field"><label>Descrição</label><input class="f-input" id="taskDesc" placeholder="O que precisa ser feito?"></div>
+    <div class="field"><label>Data Limite</label><input class="f-input" type="date" id="taskDate"></div>
+    <div class="field"><label>Vincular a Lead</label><select class="f-input" id="taskLeadSelect"><option value="">Nenhum</option></select></div>
+    <div class="flex-row" style="margin-top:4px;">
+      <button class="btn btn-navy" style="flex:1;" onclick="salvarTarefa()">Salvar</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById('taskModal').classList.remove('open')">Cancelar</button>
     </div>
   </div>
+</div>
 
-  <!-- ==================== TRANSFERÊNCIA MODAL ==================== -->
-  <div id="modalTransferencia">
-    <div class="modal2-card">
-      <div class="modal2-title">Transferência em Lote</div>
-      <div class="field"><label>Origem (de)</label><select id="transfOrigem" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.9rem;"><option value="">Selecione...</option></select></div>
-      <div class="field"><label>Destino (para)</label><select id="transfDestino" style="width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:.9rem;"><option value="">Selecione...</option></select></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="btn" style="flex:1;background:#ea580c;color:#fff;" onclick="executarTransferenciaLote()"><i class="fas fa-exchange-alt"></i> Transferir</button>
-        <button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById('modalTransferencia').classList.remove('open')">Cancelar</button>
-      </div>
+<!-- CONFIG MODAL -->
+<div id="configModal">
+  <div class="cfg-sheet">
+    <div class="modal-handle"></div>
+    <div class="m2-title">Configurações</div>
+    <div class="field"><label>Nome do Vendedor</label><input class="f-input" id="cfgNomeVendedor" placeholder="Nome completo"></div>
+    <div class="field"><label>Meta de Vendas</label><input class="f-input" id="cfgMeta" type="number" placeholder="Ex: 20"></div>
+    <div class="flex-row">
+      <button class="btn btn-navy" style="flex:1;" onclick="gerirEquipe('add')"><i class="fas fa-user-plus"></i> Adicionar</button>
+      <button class="btn btn-danger" style="flex:1;" onclick="gerirEquipe('remove')"><i class="fas fa-user-minus"></i> Remover</button>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="document.getElementById('configModal').classList.remove('open')">Fechar</button>
+  </div>
+</div>
+
+<!-- TRANSFERENCIA MODAL -->
+<div id="modalTransferencia" class="modal2-back">
+  <div class="modal2-card">
+    <div class="m2-title">Transferência em Lote</div>
+    <div class="field"><label>Origem (de)</label><select class="f-input" id="transfOrigem"><option value="">Selecione...</option></select></div>
+    <div class="field"><label>Destino (para)</label><select class="f-input" id="transfDestino"><option value="">Selecione...</option></select></div>
+    <div class="flex-row" style="margin-top:8px;">
+      <button class="btn" style="flex:1;background:#ea580c;color:#fff;" onclick="executarTransferenciaLote()"><i class="fas fa-exchange-alt"></i> Transferir</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById('modalTransferencia').classList.remove('open')">Cancelar</button>
     </div>
   </div>
+</div>
 
-  <!-- ==================== CHAT IA ==================== -->
-  <div id="chatModal">
-    <div class="chat-sheet">
-      <div class="chat-title"><i class="fas fa-robot"></i> Chat com IA · MHNET</div>
-      <div id="chatHistory"></div>
-      <div class="chat-input-row">
-        <input id="chatInput" placeholder="Pergunte sobre planos, scripts..." onkeypress="if(event.key==='Enter')enviarMensagemChat()">
-        <button class="chat-send" onclick="enviarMensagemChat()"><i class="fas fa-paper-plane"></i></button>
-      </div>
-      <button onclick="toggleChat()" style="background:none;color:var(--text-3);font-size:.78rem;font-weight:700;margin-top:10px;width:100%;">Fechar</button>
+<!-- CHAT IA -->
+<div id="chatModal">
+  <div class="chat-sheet">
+    <div class="chat-title"><i class="fas fa-robot" style="color:var(--navy);"></i> Chat com IA · MHNET</div>
+    <div id="chatHistory"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" placeholder="Pergunte sobre planos, scripts..." onkeypress="if(event.key==='Enter')enviarMensagemChat()">
+      <button class="chat-send" onclick="enviarMensagemChat()"><i class="fas fa-paper-plane"></i></button>
     </div>
+    <button onclick="toggleChat()" style="color:var(--text-3);font-size:.77rem;font-weight:700;margin-top:9px;width:100%;">Fechar Chat</button>
   </div>
-
 </div>
 
 <script src="app.js"></script>
@@ -858,10 +1009,8 @@
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     });
   }
-  window.addEventListener('online',  () => document.getElementById('offlineBanner').classList.remove('show'));
+  window.addEventListener('online',  () => { document.getElementById('offlineBanner').classList.remove('show'); processarFilaSincronizacao(); });
   window.addEventListener('offline', () => document.getElementById('offlineBanner').classList.add('show'));
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
 </script>
 </body>
 </html>
