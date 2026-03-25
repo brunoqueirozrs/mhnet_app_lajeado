@@ -2,13 +2,14 @@
  * ============================================================================
  * MHNET VENDAS — APP.JS V210
  * MUDANÇAS:
- *  - IA: usa Gemini direto com fallback backend; mostra erro real se indisponível
- *  - FTTA LAJEADO/ESTRELA: colunas corretas (Bloco, Sindico, Contato, Endereço, Bairro, Cidade)
- *    + registro de última visita + alerta de retorno (2 meses)
- *    + botão Editar
- *  - FTTA PROSPECÇÃO: colunas corretas + botão "Marcar como Adquado" (move para LAJ ou EST)
- *  - Faltas: envia via backend (e-mail HTML + callmebot) 
- *  - validateAI: valida Gemini ao iniciar
+ * - IA: usa Gemini direto com fallback backend; mostra erro real se indisponível
+ * - FTTA LAJEADO/ESTRELA: colunas corretas (Bloco, Sindico, Contato, Endereço, Bairro, Cidade)
+ * + registro de última visita + alerta de retorno (2 meses)
+ * + botão Editar
+ * - FTTA PROSPECÇÃO: colunas corretas + botão "Marcar como Adquado" (move para LAJ ou EST)
+ * - Faltas: envia via backend (e-mail HTML + callmebot) 
+ * - validateAI: valida Gemini ao iniciar
+ * - CORREÇÃO: carregarFtta buscando abas sequencialmente para evitar gargalo do Google.
  * ============================================================================
  */
 
@@ -619,13 +620,16 @@ async function carregarFtta() {
   div.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Carregando...</p></div>';
 
   try {
-    const [resL, resE, resP] = await Promise.all([
-      apiCall('getFttaLeads',     { aba: 'FTTA LAJEADO' }, false),
-      apiCall('getFttaLeads',     { aba: 'FTTA ESTRELA' }, false),
-      apiCall('getFttaProspeccao', {}, false)
-    ]);
-    if (resL?.status === 'success') fttaCache.lajeado    = resL.data || [];
-    if (resE?.status === 'success') fttaCache.estrela    = resE.data || [];
+    // Busca Lajeado primeiro
+    const resL = await apiCall('getFttaLeads', { aba: 'FTTA LAJEADO' }, false);
+    if (resL?.status === 'success') fttaCache.lajeado = resL.data || [];
+
+    // Depois busca Estrela
+    const resE = await apiCall('getFttaLeads', { aba: 'FTTA ESTRELA' }, false);
+    if (resE?.status === 'success') fttaCache.estrela = resE.data || [];
+
+    // Por fim, busca a Prospecção
+    const resP = await apiCall('getFttaProspeccao', {}, false);
     if (resP?.status === 'success') fttaCache.prospeccao = resP.data || [];
   } catch(e) {
     console.error('Erro FTTA:', e);
@@ -770,8 +774,6 @@ async function salvarEdicaoFttaBloco() {
 }
 
 // Renderiza FTTA PROSPECÇÃO
-// Colunas: nome, construtora, dataEntrega, sindico, contato, endereco, bairro, cidade,
-//          ultimaAcao, consultor, proximaAcao, adquado
 function renderFttaProspeccao(lista, div) {
   div.innerHTML = lista.map((item, idx) => {
     const fone = String(item.contato || '').replace(/\D/g, '');
