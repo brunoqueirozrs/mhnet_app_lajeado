@@ -1084,6 +1084,130 @@
     if (typeof processarFilaSincronizacao === 'function') processarFilaSincronizacao();
   });
   window.addEventListener('offline', () => document.getElementById('offlineBanner').classList.add('show'));
+<!-- ============================================================
+     ADICIONAR NO index.html — ANTES do fechamento </body>
+     Modal de Edição de Bloco FTTA (Lajeado / Estrela)
+============================================================ -->
+
+<!-- MODAL EDITAR FTTA BLOCO -->
+<div id="modalFttaBloco" class="modal2-back">
+  <div class="modal2-card">
+    <div class="m2-title">✏️ Editar Bloco FTTA</div>
+    <div class="field">
+      <label>Nome do Bloco / Condomínio</label>
+      <input class="f-input" id="fttaBlocoNome" placeholder="Ex: Residencial das Flores">
+    </div>
+    <div class="field">
+      <label>Síndico / Responsável</label>
+      <input class="f-input" id="fttaBlocoSindico" placeholder="Nome do síndico">
+    </div>
+    <div class="field">
+      <label>Contato (WhatsApp / Telefone)</label>
+      <input class="f-input" id="fttaBlocoContato" type="tel" placeholder="Ex: 51 99999-9999">
+    </div>
+    <div class="field">
+      <label>Endereço</label>
+      <input class="f-input" id="fttaBlocoEndereco" placeholder="Rua e número">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Bairro</label>
+        <input class="f-input" id="fttaBlocoBairro" placeholder="Bairro">
+      </div>
+      <div class="field">
+        <label>Cidade</label>
+        <input class="f-input" id="fttaBlocoCidade" placeholder="Cidade">
+      </div>
+    </div>
+    <div class="flex-row" style="margin-top:12px;">
+      <button class="btn btn-navy" style="flex:1;" onclick="salvarEdicaoFttaBloco()">
+        <i class="fas fa-save"></i> Salvar
+      </button>
+      <button class="btn btn-ghost" style="flex:1;"
+        onclick="document.getElementById('modalFttaBloco').classList.remove('open')">
+        Cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CHECKLIST DE IMPLEMENTAÇÃO — LEIA COM ATENÇÃO
+============================================================
+
+1. BACKEND (Google Apps Script)
+   ─────────────────────────────
+   a) Abra o Apps Script do projeto MHNET
+   b) SUBSTITUA TODO o conteúdo pelo arquivo backend_v210.gs
+   c) Salve e faça nova implantação:
+      Implantar → Gerenciar implantações → Nova versão → Implantar
+   d) Copie o novo DEPLOY_ID
+   e) Cole em app_v210.js na constante DEPLOY_ID
+
+2. FRONTEND — app.js
+   ─────────────────────────────
+   a) Substitua app.js pelo conteúdo de app_v210.js
+   b) Cole o modal acima no index.html (antes de </body>)
+
+3. PLANILHA — abas necessárias
+   ─────────────────────────────
+   Confirme que existem as abas com EXATAMENTE esses nomes:
+   
+   ✅ "FTTA LAJEADO"
+      Linha 1 (cabeçalho): A=Nome do Bloco | B=Sindico | C=Contato |
+                            D=Endereço | E=Bairro | F=Cidade |
+                            G=Ultima Visita | H=Vendedor Responsável
+   
+   ✅ "FTTA ESTRELA"
+      Mesma estrutura de FTTA LAJEADO
+   
+   ✅ "FTTA PROSPECÇÃO"
+      Linha 1: A=Nome | B=Construtora | C=Data de Entrega |
+               D=Sindico/Administradora | E=Contato | F=Endereço |
+               G=Bairro | H=Cidade | I=Ultima Ação | J=Consultor |
+               K=Proxima Ação | L=Adquado/Negociação
+   
+   ✅ "Acompanhamento de Faltas"
+      Linha 1: A=Carimbo | B=Colaborador | C=Motivo |
+               D=Link Anexo | E=Observação | F=Data Ocorrência | G=Status
+   
+   ✅ "Vendedores"
+      Linha 1: A=Nome | B=Meta | C=Status
+   
+   ✅ "Acompanhamento de Lead | Abordagens" (existente)
+   ✅ "Tarefas" (existente)
+
+4. CALLMEBOT — WhatsApp
+   ─────────────────────────────
+   A chave API_KEY_WHATS = "4345895" está no backend.
+   Certifique-se que o número +555184487818 está registrado no CallMeBot.
+   Para verificar: https://www.callmebot.com/blog/free-api-whatsapp-messages/
+
+5. GEMINI — IA
+   ─────────────────────────────
+   Estão configuradas duas chaves (uma no frontend, uma no backend).
+   O app testa automaticamente ao fazer login.
+   Se aparecer "IA indisponível" após o login, verifique:
+   a) Quota do Google AI Studio
+   b) Chave GEMINI_KEY no app.js
+   c) Chave GEMINI_API_KEY no backend
+   Rota de diagnóstico: envie { route: "validateAI" } para o backend.
+
+6. TESTE RÁPIDO pós-deploy
+   ─────────────────────────────
+   No console do navegador:
+   
+   // Testa backend
+   fetch(API_URL, { method:'POST', body: JSON.stringify({route:'testConnectivity',payload:{}})})
+     .then(r=>r.json()).then(d=>console.log(d))
+   
+   // Testa IA no backend
+   fetch(API_URL, { method:'POST', body: JSON.stringify({route:'validateAI',payload:{}})})
+     .then(r=>r.json()).then(d=>console.log(d))
+
+============================================================ -->
+
+  
 </script>
 </body>
 </html>
