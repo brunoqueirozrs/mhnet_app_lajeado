@@ -1,15 +1,13 @@
 /**
  * ============================================================================
- * MHNET VENDAS — APP.JS V210
- * MUDANÇAS:
- * - IA: usa Gemini direto com fallback backend; mostra erro real se indisponível
- * - FTTA LAJEADO/ESTRELA: colunas corretas (Bloco, Sindico, Contato, Endereço, Bairro, Cidade)
- * + registro de última visita + alerta de retorno (2 meses)
- * + botão Editar
- * - FTTA PROSPECÇÃO: colunas corretas + botão "Marcar como Adquado" (move para LAJ ou EST)
- * - Faltas: envia via backend (e-mail HTML + callmebot) 
- * - validateAI: valida Gemini ao iniciar
- * - CORREÇÃO: carregarFtta buscando abas sequencialmente com logs de debug
+ * MHNET VENDAS — APP.JS V220
+ * MUDANÇAS V220:
+ * - FTTA: filtro por cidade, bairro e endereço
+ * - FTTA: botão "Mapa" abre Google Maps diretamente no endereço do bloco
+ * - FTTA: filtros de cidade como chips clicáveis
+ * - Concorrentes: sincronização com backend (getConcorrentes / saveConcorrente)
+ * - Concorrentes: fallback para dados locais caso backend falhe
+ * - E-mail de faltas: sem emojis (resolvido no backend)
  * ============================================================================
  */
 
@@ -23,60 +21,52 @@ const CALENDAR_URL = 'https://calendar.google.com/calendar/u/0?cid=ZTZlNjQ2OWVkN
 const ADMIN_NAME_CHECK = 'BRUNO GARCIA QUEIROZ';
 const EMAIL_ADMIN = 'bruno.queiroz@mhnet.com.br';
 
-// Status da IA
-let AI_DISPONIVEL = null; // null=não testado, true/false
+let AI_DISPONIVEL = null;
 
 const MHNET_CONTEXT = `
-Você é o assistente de vendas da MHNET, empresa de internet fibra óptica (FTTA) em Lajeado e Estrela/RS, Vale do Taquari.
+Voce e o assistente de vendas da MHNET, empresa de internet fibra optica (FTTA) em Lajeado e Estrela/RS, Vale do Taquari.
 
-INFORMAÇÕES DA MHNET:
-- Tecnologia FTTA (Fiber to the Antenna) - fibra óptica de alta performance
-- Cidades: Lajeado, Estrela e região do Vale do Taquari/RS
-- Diferenciais: atendimento local humanizado, técnico no mesmo dia, sem fidelidade longa, preços competitivos
+INFORMACOES DA MHNET:
+- Tecnologia FTTA (Fiber to the Antenna) - fibra optica de alta performance
+- Cidades: Lajeado, Estrela e regiao do Vale do Taquari/RS
+- Diferenciais: atendimento local humanizado, tecnico no mesmo dia, sem fidelidade longa, precos competitivos
 - Planos: 100Mbps, 200Mbps, 300Mbps, 500Mbps, 1Gbps
-- Serviços: MHPlay (streaming), câmeras de segurança, telefone fixo, IP fixo para negócios
-- Suporte 24h, equipe técnica local, sem call center nacional
+- Servicos: MHPlay (streaming), cameras de seguranca, telefone fixo, IP fixo para negocios
+- Suporte 24h, equipe tecnica local, sem call center nacional
 
-OBJECTIONS COMUNS:
-- "Já tenho internet": Questionar qualidade, preço e suporte atual
-- "Está caro": Comparar custo-benefício, velocidade e suporte local
-- "Estou na fidelidade": Verificar data de vencimento e preparar proposta futura
-
-Responda de forma direta, objetiva e útil para vendedores de campo. Máximo 5 linhas.`;
+Responda de forma direta, objetiva e util para vendedores de campo. Maximo 5 linhas.`;
 
 const VENDEDORES_OFFLINE = [
   'Bruno Garcia Queiroz','Ana Paula Rodrigues','Vitoria Caroline Baldez Rosales',
-  'João Vithor Sader','João Paulo da Silva Santos','Claudia Maria Semmler',
-  'Diulia Vitoria Machado Borges','Elton da Silva Rodrigo Gonçalves','Vendedor Teste'
+  'Joao Vithor Sader','Joao Paulo da Silva Santos','Claudia Maria Semmler',
+  'Diulia Vitoria Machado Borges','Elton da Silva Rodrigo Goncalves','Vendedor Teste'
 ];
 
-// ============================================================
-// ALMANAQUE DE CONCORRENTES
-// ============================================================
-let CONCORRENTES = JSON.parse(localStorage.getItem('mhnet_concorrentes') || 'null') || [
+// Concorrentes padrão (fallback offline)
+const CONCORRENTES_DEFAULT = [
   {
-    id: 'vero', name: 'Vero Internet', type: 'Fibra Óptica', cor: '#1565c0', sigla: 'VR',
-    pros: ['Marca consolidada no RS','Alta cobertura urbana','App mobile completo','Velocidades até 1 Gbps'],
-    cons: ['Preços mais altos','Fidelidade de 12 meses','Suporte por vezes lento','Pouca flexibilidade nos planos'],
-    mhnet: 'MHNET oferece melhor custo-benefício, atendimento humanizado local, sem fidelidade longa e com velocidades similares a preço menor.'
+    id: 'vero', name: 'Vero Internet', type: 'Fibra Optica', cor: '#1565c0', sigla: 'VR',
+    pros: ['Marca consolidada no RS','Alta cobertura urbana','App mobile completo','Velocidades ate 1 Gbps'],
+    cons: ['Precos mais altos','Fidelidade de 12 meses','Suporte por vezes lento','Pouca flexibilidade nos planos'],
+    mhnet: 'MHNET oferece melhor custo-beneficio, atendimento humanizado local, sem fidelidade longa e com velocidades similares a preco menor.'
   },
   {
     id: 'claro', name: 'Claro NET', type: 'Fibra + TV', cor: '#e53935', sigla: 'CL',
-    pros: ['Combo Fibra + TV + Móvel','Marca nacional reconhecida','Grande infraestrutura'],
-    cons: ['Preços elevados','Contratos longos e multas altas','SAC difícil','Reajustes anuais agressivos'],
-    mhnet: 'MHNET tem atendimento local ágil, sem surpresas na fatura, preços fixos sem reajuste abusivo.'
+    pros: ['Combo Fibra + TV + Movel','Marca nacional reconhecida','Grande infraestrutura'],
+    cons: ['Precos elevados','Contratos longos e multas altas','SAC dificil','Reajustes anuais agressivos'],
+    mhnet: 'MHNET tem atendimento local agil, sem surpresas na fatura, precos fixos sem reajuste abusivo.'
   },
   {
-    id: 'tim', name: 'TIM Live', type: 'Fibra + Móvel', cor: '#1a237e', sigla: 'TM',
-    pros: ['Integração com plano móvel TIM','Cobertura em cidades menores','Promoções de entrada'],
-    cons: ['Qualidade variável por região','Fidelidade de 12 meses','Suporte centralizado'],
-    mhnet: 'MHNET é empresa regional com infraestrutura própria, mais estabilidade e suporte técnico local no mesmo dia.'
+    id: 'tim', name: 'TIM Live', type: 'Fibra + Movel', cor: '#1a237e', sigla: 'TM',
+    pros: ['Integracao com plano movel TIM','Cobertura em cidades menores','Promocoes de entrada'],
+    cons: ['Qualidade variavel por regiao','Fidelidade de 12 meses','Suporte centralizado'],
+    mhnet: 'MHNET e empresa regional com infraestrutura propria, mais estabilidade e suporte tecnico local no mesmo dia.'
   },
   {
-    id: 'vivo', name: 'Vivo Fibra', type: 'Fibra + Serviços', cor: '#7b1fa2', sigla: 'VV',
-    pros: ['Marca forte','Combo com TV e serviços','Alta velocidade','Cobertura nacional'],
-    cons: ['Preços muito altos','Burocracia no suporte','Fidelidade longa','Reajuste anual automático'],
-    mhnet: 'MHNET oferece planos acessíveis, instalação rápida, sem burocracia e com técnico na cidade.'
+    id: 'vivo', name: 'Vivo Fibra', type: 'Fibra + Servicos', cor: '#7b1fa2', sigla: 'VV',
+    pros: ['Marca forte','Combo com TV e servicos','Alta velocidade','Cobertura nacional'],
+    cons: ['Precos muito altos','Burocracia no suporte','Fidelidade longa','Reajuste anual automatico'],
+    mhnet: 'MHNET oferece planos acessiveis, instalacao rapida, sem burocracia e com tecnico na cidade.'
   }
 ];
 
@@ -90,12 +80,14 @@ let tasksCache      = [];
 let materialsCache  = [];
 let fttaCache       = { lajeado: [], estrela: [], prospeccao: [] };
 let fttaTabAtual    = 'lajeado';
+let fttaCidadeFiltro = ''; // NOVO: filtro de cidade ativo
 let leadAtualParaAgendar = null;
 let currentFolderId = null;
 let editingLeadIndex = null;
 let compSelecionado  = null;
 let editingCompId   = null;
-let editingFttaItem = null; // para modal de edição FTTA
+let editingFttaItem = null;
+let CONCORRENTES    = JSON.parse(localStorage.getItem('mhnet_concorrentes') || 'null') || CONCORRENTES_DEFAULT;
 let syncQueue = JSON.parse(localStorage.getItem('mhnet_sync_queue') || '[]');
 
 function isAdminUser() {
@@ -115,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
     if (navigator.onLine) {
       processarFilaSincronizacao();
-      // Valida IA em background
       validarIA();
     }
   }
@@ -147,7 +138,6 @@ function instalarPWA() {
 // ============================================================
 async function validarIA() {
   try {
-    // Testa Gemini diretamente
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -158,12 +148,10 @@ async function validarIA() {
     });
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    AI_DISPONIVEL = text.toLowerCase().includes('ok') || text.length > 0;
+    AI_DISPONIVEL = text.length > 0;
   } catch(e) {
     AI_DISPONIVEL = false;
-    console.warn('Gemini indisponível no frontend:', e.message);
   }
-  console.log('IA disponível:', AI_DISPONIVEL);
 }
 
 function initApp() {
@@ -198,7 +186,7 @@ function initApp() {
 // ============================================================
 function setLoggedUser() {
   const v = document.getElementById('userSelect').value;
-  if (!v) { alert('⚠️ Selecione um vendedor!'); return; }
+  if (!v) { alert('Selecione um vendedor!'); return; }
   loggedUser = v;
   localStorage.setItem('loggedUser', v);
   initApp();
@@ -257,6 +245,7 @@ function navegarPara(pageId) {
   if (pageId === 'ftta')         carregarFtta();
   if (pageId === 'cadastroLead' && editingLeadIndex === null) limparFormLead();
   if (pageId === 'faltas')       carregarHistoricoFaltas();
+  if (pageId === 'concorrentes') carregarConcorrentesBackend();
 }
 
 function verTodosLeads() {
@@ -340,7 +329,7 @@ function renderListaLeadsHTML(lista, containerId = 'listaLeadsGestao') {
   const badgeClass = s => {
     if (s === 'Venda Fechada') return 'fechado';
     if (s === 'Agendado')      return 'agendado';
-    if (s === 'Negociação')    return 'negociacao';
+    if (s === 'Negociacao')    return 'negociacao';
     if (s === 'Novo')          return 'novo';
     return 'default';
   };
@@ -354,7 +343,7 @@ function renderListaLeadsHTML(lista, containerId = 'listaLeadsGestao') {
         <div class="lc-name" onclick="abrirLeadDetalhes(${idx})">${l.nomeLead || '-'}</div>
         <span class="badge ${badgeClass(l.status)}">${l.status || 'Novo'}</span>
       </div>
-      <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${l.bairro || '-'} · ${l.cidade || '-'}</div>
+      <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${l.bairro || '-'} &middot; ${l.cidade || '-'}</div>
       ${l.telefone ? `<div class="lc-phone"><i class="fas fa-phone" style="font-size:.7rem;opacity:.6;"></i> ${l.telefone}</div>` : ''}
       ${l.provedor ? `<div class="lc-provedor"><i class="fas fa-wifi"></i> ${l.provedor}</div>` : ''}
       ${l.agendamento ? `<div class="lc-sched"><i class="fas fa-clock"></i> ${l.agendamento.split(' ')[0]}</div>` : ''}
@@ -378,7 +367,7 @@ function filtrarPorStatus(status, btn) {
 function filtrarLeadsHoje() {
   const hoje = new Date().toLocaleDateString('pt-BR');
   const lista = leadsCache.filter(l => l.timestamp && l.timestamp.includes(hoje));
-  if (!lista.length) { alert('📅 Nenhum lead cadastrado hoje!'); return; }
+  if (!lista.length) { alert('Nenhum lead cadastrado hoje!'); return; }
   navegarPara('gestaoLeads');
   renderListaLeadsHTML(lista, 'listaLeadsGestao');
 }
@@ -435,12 +424,12 @@ function abrirLeadDetalhes(index) {
     const diffDays = Math.ceil((fid - hoje) / (1000 * 60 * 60 * 24));
     fidBox.classList.remove('hidden');
     if (diffDays <= 0) {
-      fidBox.innerHTML = `<i class="fas fa-unlock"></i> Fidelidade <b>VENCIDA</b> — ótima hora para fechar!`;
+      fidBox.innerHTML = `Fidelidade VENCIDA &mdash; otima hora para fechar!`;
       fidBox.style.background = '#d1fae5'; fidBox.style.color = '#065f46';
     } else if (diffDays <= 30) {
-      fidBox.innerHTML = `<i class="fas fa-clock"></i> Fidelidade vence em <b>${diffDays} dias</b> — momento ideal!`;
+      fidBox.innerHTML = `Fidelidade vence em <b>${diffDays} dias</b> &mdash; momento ideal!`;
     } else {
-      fidBox.innerHTML = `<i class="fas fa-lock"></i> Fidelidade até ${fid.toLocaleDateString('pt-BR')}`;
+      fidBox.innerHTML = `Fidelidade ate ${fid.toLocaleDateString('pt-BR')}`;
     }
   } else { fidBox.classList.add('hidden'); }
 
@@ -536,7 +525,7 @@ function limparFormLead() {
 
 async function enviarLead() {
   const nome = document.getElementById('leadNome').value.trim();
-  if (!nome) { alert('⚠️ Informe o nome do cliente!'); return; }
+  if (!nome) { alert('Informe o nome do cliente!'); return; }
 
   const p = {
     vendedor:    loggedUser,
@@ -551,7 +540,7 @@ async function enviarLead() {
     valorPlano:  document.getElementById('leadValorPlano').value,
     planoAtual:  document.getElementById('leadPlanoAtual').value,
     fidelidade:  document.getElementById('leadFidelidade').value,
-    interesse:   document.getElementById('leadInteresse')?.value || 'Médio',
+    interesse:   document.getElementById('leadInteresse')?.value || 'Medio',
     status:      document.getElementById('leadStatus').value,
     observacao:  document.getElementById('leadObs').value,
     novoVendedor: document.getElementById('leadVendedorDestino')?.value || ''
@@ -572,11 +561,11 @@ async function enviarLead() {
     }
     localStorage.setItem('mhnet_leads_cache', JSON.stringify(leadsCache));
     editingLeadIndex = null;
-    alert('✅ Lead salvo com sucesso!');
+    alert('Lead salvo com sucesso!');
     carregarLeads(false);
     navegarPara('gestaoLeads');
   } else {
-    alert('❌ Erro ao salvar. Verifique a conexão.');
+    alert('Erro ao salvar. Verifique a conexao.');
   }
 }
 
@@ -590,11 +579,11 @@ async function excluirLead() {
 }
 
 async function marcarVendaFechada() {
-  if (!confirm('Confirmar Venda Fechada? 🎉')) return;
+  if (!confirm('Confirmar Venda Fechada?')) return;
   await apiCall('updateStatus', { vendedor: loggedUser, nomeLead: leadAtualParaAgendar.nomeLead, status: 'Venda Fechada' });
   leadAtualParaAgendar.status = 'Venda Fechada';
   localStorage.setItem('mhnet_leads_cache', JSON.stringify(leadsCache));
-  alert('🎉 Parabéns pela venda!');
+  alert('Parabens pela venda!');
   fecharLeadModal();
   renderLeads();
 }
@@ -604,15 +593,13 @@ async function encaminharLeadModal() {
   if (!n) { alert('Selecione um vendedor destino'); return; }
   if (!confirm(`Encaminhar para ${n}?`)) return;
   await apiCall('forwardLead', { nomeLead: leadAtualParaAgendar.nomeLead, novoVendedor: n, origem: loggedUser });
-  alert('✅ Lead encaminhado!');
+  alert('Lead encaminhado!');
   fecharLeadModal();
   carregarLeads();
 }
 
 // ============================================================
-// FTTA — LAJEADO / ESTRELA
-// Colunas: A=NomeBloco B=Sindico C=Contato D=Endereço E=Bairro F=Cidade
-//          G=UltimaVisita H=VendedorResponsavel
+// FTTA — COM FILTROS POR CIDADE / BAIRRO / ENDEREÇO + MAPA
 // ============================================================
 async function carregarFtta() {
   const div = document.getElementById('listaFtta');
@@ -620,46 +607,80 @@ async function carregarFtta() {
   div.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Carregando...</p></div>';
 
   try {
-    console.log("📡 Iniciando busca das abas FTTA (Sequencial)...");
-
-    // Busca Lajeado primeiro
     const resL = await apiCall('getFttaLeads', { aba: 'FTTA LAJEADO' }, false);
-    console.log("📦 Resposta Lajeado:", resL);
     if (resL?.status === 'success') fttaCache.lajeado = resL.data || [];
 
-    // Depois busca Estrela
     const resE = await apiCall('getFttaLeads', { aba: 'FTTA ESTRELA' }, false);
-    console.log("📦 Resposta Estrela:", resE);
     if (resE?.status === 'success') fttaCache.estrela = resE.data || [];
 
-    // Por fim, busca a Prospecção
     const resP = await apiCall('getFttaProspeccao', {}, false);
-    console.log("📦 Resposta Prospecção:", resP);
     if (resP?.status === 'success') fttaCache.prospeccao = resP.data || [];
-
   } catch(e) {
-    console.error('❌ Erro de conexão no FTTA:', e);
+    console.error('Erro FTTA:', e);
   }
 
+  // Atualiza chips de cidade após carregar
+  atualizarChipsCidadeFtta();
   renderFttaLista();
+}
+
+/**
+ * Extrai cidades únicas da lista atual e renderiza chips de filtro
+ */
+function atualizarChipsCidadeFtta() {
+  const container = document.getElementById('fttaCidadeChips');
+  if (!container) return;
+
+  const lista = fttaCache[fttaTabAtual] || [];
+  const cidades = [...new Set(lista.map(i => (i.cidade || '').trim()).filter(Boolean))].sort();
+
+  if (!cidades.length) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <button class="ftag ${!fttaCidadeFiltro ? 'on' : ''}" onclick="setFttaCidadeFiltro('',this)">Todas</button>
+    ${cidades.map(c => `<button class="ftag ${fttaCidadeFiltro === c ? 'on' : ''}" onclick="setFttaCidadeFiltro('${c}',this)">${c}</button>`).join('')}
+  `;
+}
+
+function setFttaCidadeFiltro(cidade, btn) {
+  fttaCidadeFiltro = cidade;
+  document.querySelectorAll('#fttaCidadeChips .ftag').forEach(b => b.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  filtrarFtta();
 }
 
 function setFttaTab(tab) {
   fttaTabAtual = tab;
+  fttaCidadeFiltro = ''; // reseta filtro de cidade ao trocar aba
   document.querySelectorAll('#ftta .ftag').forEach(b => b.classList.remove('on'));
   const tabMap = { lajeado:'fttaTabLaj', estrela:'fttaTabEst', prospeccao:'fttaTabPro' };
   document.getElementById(tabMap[tab])?.classList.add('on');
+  atualizarChipsCidadeFtta();
   filtrarFtta();
 }
 
+/**
+ * Filtra FTTA por: termo de busca (nome/bairro/endereço) + cidade selecionada
+ */
 function filtrarFtta() {
   const term = (document.getElementById('searchFtta')?.value || '').toLowerCase();
   let lista = fttaCache[fttaTabAtual] || [];
-  if (term) lista = lista.filter(l =>
-    String(l.nomeBloco || l.nome || '').toLowerCase().includes(term) ||
-    String(l.bairro || '').toLowerCase().includes(term) ||
-    String(l.cidade || '').toLowerCase().includes(term)
-  );
+
+  // Filtro de cidade
+  if (fttaCidadeFiltro) {
+    lista = lista.filter(l => (l.cidade || '').trim() === fttaCidadeFiltro);
+  }
+
+  // Filtro de texto — busca em nome, bairro, endereço e cidade
+  if (term) {
+    lista = lista.filter(l =>
+      String(l.nomeBloco || l.nome || '').toLowerCase().includes(term) ||
+      String(l.bairro    || '').toLowerCase().includes(term) ||
+      String(l.endereco  || '').toLowerCase().includes(term) ||
+      String(l.cidade    || '').toLowerCase().includes(term)
+    );
+  }
+
   renderFttaLista(lista);
 }
 
@@ -680,41 +701,72 @@ function renderFttaLista(lista = null) {
   }
 }
 
-// Renderiza cards de FTTA LAJEADO ou ESTRELA
+// Renderiza cards de FTTA LAJEADO ou ESTRELA — com botão Mapa
 function renderFttaBlocos(lista, div) {
   const abaAtual = fttaTabAtual === 'lajeado' ? 'FTTA LAJEADO' : 'FTTA ESTRELA';
-  const hoje = new Date();
 
   div.innerHTML = lista.map((item, idx) => {
     const fone = String(item.contato || '').replace(/\D/g, '');
-    const alertClass = item.alertaVisita ? 'ftta-alert-visita' : '';
+
+    // Monta endereço completo para o Maps
+    const endMaps = encodeURIComponent(
+      [item.endereco, item.bairro, item.cidade, 'Brasil'].filter(Boolean).join(', ')
+    );
 
     return `
-    <div class="lead-card ${alertClass}" style="${item.alertaVisita ? 'border-left: 3px solid #f59e0b;' : ''}">
+    <div class="lead-card ${item.alertaVisita ? 'ftta-alert-visita' : ''}"
+         style="${item.alertaVisita ? 'border-left:3px solid #f59e0b;' : ''}">
       <div class="lc-top">
         <div class="lc-name">${item.nomeBloco || '-'}</div>
-        ${item.alertaVisita ? `<span class="badge agendado">⚠️ Visitar</span>` : `<span class="badge novo">Ativo</span>`}
+        ${item.alertaVisita
+          ? `<span class="badge agendado">Visitar</span>`
+          : `<span class="badge novo">Ativo</span>`}
       </div>
-      <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${item.bairro || '-'} · ${item.cidade || '-'}</div>
-      ${item.sindico ? `<div class="lc-phone" style="font-size:.75rem;color:var(--text-2);"><i class="fas fa-user-tie" style="font-size:.7rem;opacity:.6;margin-right:3px;"></i>${item.sindico}</div>` : ''}
-      ${item.contato ? `<div class="lc-phone"><i class="fas fa-phone" style="font-size:.7rem;opacity:.6;"></i> ${item.contato}</div>` : ''}
-      ${item.endereco ? `<div class="lc-city" style="font-size:.7rem;"><i class="fas fa-road" style="margin-right:3px;"></i>${item.endereco}</div>` : ''}
-      
+
+      <!-- Cidade e bairro -->
+      <div class="lc-city">
+        <i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>
+        ${item.bairro || '-'} &middot; <b>${item.cidade || '-'}</b>
+      </div>
+
+      <!-- Endereço clicável para mapa -->
+      ${item.endereco ? `
+        <div class="lc-city" style="font-size:.7rem;cursor:pointer;color:var(--navy);"
+             onclick="window.open('https://maps.google.com/?q=${endMaps}','_blank')">
+          <i class="fas fa-road" style="margin-right:3px;"></i>${item.endereco}
+          <span style="font-size:.6rem;opacity:.7;"> (abrir mapa)</span>
+        </div>` : ''}
+
+      ${item.sindico ? `<div class="lc-phone" style="font-size:.75rem;color:var(--text-2);">
+        <i class="fas fa-user-tie" style="font-size:.7rem;opacity:.6;margin-right:3px;"></i>${item.sindico}</div>` : ''}
+
+      ${item.contato ? `<div class="lc-phone">
+        <i class="fas fa-phone" style="font-size:.7rem;opacity:.6;"></i> ${item.contato}</div>` : ''}
+
+      <!-- Datas de visita -->
       <div style="display:flex;gap:6px;margin:8px 0 4px;background:var(--surface);border-radius:8px;padding:8px 10px;font-size:.72rem;flex-wrap:wrap;">
         <div style="flex:1;">
-          <span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Última visita</span>
-          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--warning)' : 'var(--text-1)'};">${item.ultimaVisita || '—'}</span>
+          <span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Ultima visita</span>
+          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--warning)' : 'var(--text-1)'};">
+            ${item.ultimaVisita || '&mdash;'}
+          </span>
         </div>
         <div style="flex:1;">
-          <span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Próxima</span>
-          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--danger)' : 'var(--success)'};">${item.proximaVisita || 'Não registrado'}</span>
+          <span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Proxima</span>
+          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--danger)' : 'var(--success)'};">
+            ${item.proximaVisita || 'Nao registrado'}
+          </span>
         </div>
       </div>
 
       <div class="lc-btns" style="flex-wrap:wrap;gap:5px;">
         ${fone ? `<button class="lc-btn call" onclick="ligarPara('${fone}')"><i class="fas fa-phone"></i> Ligar</button>` : ''}
         ${fone ? `<button class="lc-btn whats" onclick="abrirWhatsAppDireto('${fone}')"><i class="fab fa-whatsapp"></i></button>` : ''}
-        <button class="lc-btn detail" onclick="registrarVisitaFtta(${item._linha},'${abaAtual}')" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0;">
+        <button class="lc-btn map" onclick="window.open('https://maps.google.com/?q=${endMaps}','_blank')">
+          <i class="fas fa-map-marker-alt"></i> Mapa
+        </button>
+        <button class="lc-btn detail" onclick="registrarVisitaFtta(${item._linha},'${abaAtual}')"
+          style="background:#d1fae5;color:#065f46;border-color:#a7f3d0;">
           <i class="fas fa-calendar-check"></i> Registrar Visita
         </button>
         <button class="lc-btn detail" onclick="abrirEditarFttaBloco(${idx},'${abaAtual}')">
@@ -725,21 +777,19 @@ function renderFttaBlocos(lista, div) {
   }).join('');
 }
 
-// Registra última visita no backend
 async function registrarVisitaFtta(linha, aba) {
   if (!confirm('Registrar visita de hoje neste bloco?')) return;
   showLoading(true);
   const res = await apiCall('updateFttaVisita', { _linha: linha, aba, vendedor: loggedUser }, false);
   showLoading(false);
   if (res?.status === 'success') {
-    alert('✅ Visita registrada! Próximo retorno em 2 meses.');
+    alert('Visita registrada! Proximo retorno em 2 meses.');
     carregarFtta();
   } else {
-    alert('❌ Erro ao registrar. Verifique conexão.');
+    alert('Erro ao registrar. Verifique conexao.');
   }
 }
 
-// Abre modal para editar bloco FTTA
 function abrirEditarFttaBloco(idx, aba) {
   const lista = fttaTabAtual === 'lajeado' ? fttaCache.lajeado : fttaCache.estrela;
   editingFttaItem = { ...lista[idx], aba };
@@ -771,40 +821,55 @@ async function salvarEdicaoFttaBloco() {
   const res = await apiCall('updateFttaBloco', d, false);
   showLoading(false);
   if (res?.status === 'success') {
-    alert('✅ Bloco atualizado!');
+    alert('Bloco atualizado!');
     document.getElementById('modalFttaBloco').classList.remove('open');
     carregarFtta();
   } else {
-    alert('❌ Erro ao salvar.');
+    alert('Erro ao salvar.');
   }
 }
 
-// Renderiza FTTA PROSPECÇÃO
+// Renderiza FTTA PROSPECÇÃO — com botão Mapa também
 function renderFttaProspeccao(lista, div) {
   div.innerHTML = lista.map((item, idx) => {
     const fone = String(item.contato || '').replace(/\D/g, '');
     const jaAdquado = String(item.adquado || '').toUpperCase().includes('ADQUADO');
+    const endMaps = encodeURIComponent(
+      [item.endereco, item.bairro, item.cidade, 'Brasil'].filter(Boolean).join(', ')
+    );
 
     return `
     <div class="lead-card" style="${jaAdquado ? 'opacity:.55;' : ''}">
       <div class="lc-top">
         <div class="lc-name">${item.nome || '-'}</div>
-        ${jaAdquado ? `<span class="badge fechado">✅ Adquado</span>` : `<span class="badge negociacao">Prospecção</span>`}
+        ${jaAdquado
+          ? `<span class="badge fechado">Adquado</span>`
+          : `<span class="badge negociacao">Prospeccao</span>`}
       </div>
       ${item.construtora ? `<div class="lc-city"><i class="fas fa-building" style="margin-right:4px;"></i>${item.construtora}</div>` : ''}
-      <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${item.bairro || '-'} · ${item.cidade || '-'}</div>
-      ${item.endereco ? `<div class="lc-city" style="font-size:.7rem;"><i class="fas fa-road" style="margin-right:3px;"></i>${item.endereco}</div>` : ''}
-      
+      <div class="lc-city">
+        <i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${item.bairro || '-'} &middot; <b>${item.cidade || '-'}</b>
+      </div>
+      ${item.endereco ? `
+        <div class="lc-city" style="font-size:.7rem;cursor:pointer;color:var(--navy);"
+             onclick="window.open('https://maps.google.com/?q=${endMaps}','_blank')">
+          <i class="fas fa-road" style="margin-right:3px;"></i>${item.endereco}
+          <span style="font-size:.6rem;opacity:.7;"> (abrir mapa)</span>
+        </div>` : ''}
+
       <div style="display:flex;gap:6px;margin:8px 0 4px;background:var(--surface);border-radius:8px;padding:8px 10px;font-size:.72rem;flex-wrap:wrap;">
         ${item.dataEntrega ? `<div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Entrega prevista</span><span style="font-weight:700;color:var(--text-1);">${item.dataEntrega}</span></div>` : ''}
-        ${item.consultor ? `<div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Consultor</span><span style="font-weight:700;color:var(--text-1);">${item.consultor}</span></div>` : ''}
-        ${item.ultimaAcao ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Última ação</span><span style="color:var(--text-2);">${item.ultimaAcao}</span></div>` : ''}
-        ${item.proximaAcao ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Próxima ação</span><span style="color:var(--navy);font-weight:700;">${item.proximaAcao}</span></div>` : ''}
+        ${item.consultor   ? `<div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Consultor</span><span style="font-weight:700;color:var(--text-1);">${item.consultor}</span></div>` : ''}
+        ${item.ultimaAcao  ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Ultima acao</span><span style="color:var(--text-2);">${item.ultimaAcao}</span></div>` : ''}
+        ${item.proximaAcao ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Proxima acao</span><span style="color:var(--navy);font-weight:700;">${item.proximaAcao}</span></div>` : ''}
       </div>
 
       <div class="lc-btns" style="flex-wrap:wrap;gap:5px;">
         ${fone ? `<button class="lc-btn call" onclick="ligarPara('${fone}')"><i class="fas fa-phone"></i> Ligar</button>` : ''}
         ${fone ? `<button class="lc-btn whats" onclick="abrirWhatsAppDireto('${fone}')"><i class="fab fa-whatsapp"></i></button>` : ''}
+        <button class="lc-btn map" onclick="window.open('https://maps.google.com/?q=${endMaps}','_blank')">
+          <i class="fas fa-map-marker-alt"></i> Mapa
+        </button>
         ${!jaAdquado ? `
         <button class="lc-btn detail" onclick="confirmarAdquarFtta(${idx})"
           style="background:#d1fae5;color:#065f46;border-color:#a7f3d0;flex:1;">
@@ -815,35 +880,21 @@ function renderFttaProspeccao(lista, div) {
   }).join('');
 }
 
-// Confirma e move prospecto para FTTA da cidade
 async function confirmarAdquarFtta(idx) {
   const item = fttaCache.prospeccao[idx];
   if (!item) return;
-
   const cidadeLower = String(item.cidade || '').toLowerCase();
   const destino = cidadeLower.includes('estrela') ? 'FTTA ESTRELA' : 'FTTA LAJEADO';
-
-  if (!confirm(`Marcar "${item.nome}" como Adquado?\nSerá movido para ${destino}.`)) return;
-
+  if (!confirm(`Marcar "${item.nome}" como Adquado?\nSera movido para ${destino}.`)) return;
   showLoading(true);
   const res = await apiCall('adquarFttaProspeccao', {
-    _linha:     item._linha,
-    nome:       item.nome,
-    sindico:    item.sindico,
-    contato:    item.contato,
-    endereco:   item.endereco,
-    bairro:     item.bairro,
-    cidade:     item.cidade,
-    consultor:  item.consultor
+    _linha: item._linha, nome: item.nome, sindico: item.sindico,
+    contato: item.contato, endereco: item.endereco, bairro: item.bairro,
+    cidade: item.cidade, consultor: item.consultor
   }, false);
   showLoading(false);
-
-  if (res?.status === 'success') {
-    alert(`✅ Movido para ${res.abaDestino || destino}!`);
-    carregarFtta();
-  } else {
-    alert('❌ Erro ao mover. Tente novamente.');
-  }
+  if (res?.status === 'success') { alert(`Movido para ${res.abaDestino || destino}!`); carregarFtta(); }
+  else alert('Erro ao mover. Tente novamente.');
 }
 
 // ============================================================
@@ -877,7 +928,7 @@ function renderTarefas() {
         <div class="t-desc ${done ? 'done' : ''}">${t.descricao}</div>
         <div class="t-meta">
           ${t.dataLimite ? `<span class="t-chip date"><i class="far fa-calendar"></i> ${t.dataLimite}</span>` : ''}
-          ${t.nomeLead ? `<span class="t-chip lead" onclick="irParaLeadDaTarefa('${t.nomeLead}')" style="cursor:pointer;">👤 ${t.nomeLead}</span>` : ''}
+          ${t.nomeLead ? `<span class="t-chip lead" onclick="irParaLeadDaTarefa('${t.nomeLead}')" style="cursor:pointer;">Lide: ${t.nomeLead}</span>` : ''}
         </div>
       </div>
       <div class="t-del" onclick="excluirTarefa('${t.id}')"><i class="fas fa-trash-alt"></i></div>
@@ -888,7 +939,7 @@ function renderTarefas() {
 function irParaLeadDaTarefa(nomeLead) {
   const idx = leadsCache.findIndex(l => l.nomeLead === nomeLead);
   if (idx >= 0) { navegarPara('gestaoLeads'); setTimeout(() => abrirLeadDetalhes(idx), 200); }
-  else alert(`Lead "${nomeLead}" não encontrado.`);
+  else alert(`Lead "${nomeLead}" nao encontrado.`);
 }
 
 function abrirModalTarefa() {
@@ -899,7 +950,7 @@ function abrirModalTarefa() {
 
 async function salvarTarefa() {
   const desc = document.getElementById('taskDesc').value.trim();
-  if (!desc) { alert('Informe a descrição!'); return; }
+  if (!desc) { alert('Informe a descricao!'); return; }
   await apiCall('addTask', {
     vendedor:   loggedUser,
     descricao:  desc,
@@ -926,7 +977,7 @@ async function excluirTarefa(id) {
 }
 
 async function limparTarefasConcluidas() {
-  if (!confirm('Arquivar tarefas concluídas?')) return;
+  if (!confirm('Arquivar tarefas concluidas?')) return;
   tasksCache = tasksCache.filter(t => t.status !== 'CONCLUIDA');
   renderTarefas();
   await apiCall('archiveTasks', { vendedor: loggedUser }, false);
@@ -945,7 +996,7 @@ function renderTarefasNoModal(nomeLead) {
 function abrirCalendario() { window.open(CALENDAR_URL, '_blank'); }
 
 // ============================================================
-// FALTAS — Envia via backend (e-mail HTML + callmebot)
+// FALTAS
 // ============================================================
 async function enviarJustificativa() {
   const data    = document.getElementById('faltaData').value;
@@ -953,19 +1004,18 @@ async function enviarJustificativa() {
   const obs     = document.getElementById('faltaObs').value;
   const arquivo = document.getElementById('faltaArquivo').files[0];
 
-  if (!data || !motivo) { alert('⚠️ Preencha data e tipo de solicitação!'); return; }
+  if (!data || !motivo) { alert('Preencha data e tipo de solicitacao!'); return; }
 
   const payload = {
-    vendedor:    loggedUser,
-    dataFalta:   data,
-    motivo:      motivo,
-    observacao:  obs,
-    emailAdmin:  EMAIL_ADMIN
+    vendedor:   loggedUser,
+    dataFalta:  data,
+    motivo:     motivo,
+    observacao: obs,
+    emailAdmin: EMAIL_ADMIN
   };
 
   showLoading(true);
 
-  // Processa arquivo se houver
   if (arquivo) {
     try {
       const base64 = await new Promise((res, rej) => {
@@ -977,20 +1027,18 @@ async function enviarJustificativa() {
       payload.fileData = base64;
       payload.fileName = arquivo.name;
       payload.mimeType = arquivo.type;
-    } catch(e) {
-      console.warn('Erro ao processar arquivo:', e);
-    }
+    } catch(e) { console.warn('Arquivo nao processado:', e); }
   }
 
   const res = await apiCall('registerAbsence', payload, false);
   showLoading(false);
 
   if (res?.status === 'success') {
-    alert('✅ Solicitação enviada!\nUm e-mail foi encaminhado ao gestor.');
+    alert('Solicitacao enviada! Um e-mail foi encaminhado ao gestor.');
     limparFormFalta();
     carregarHistoricoFaltas();
   } else {
-    alert('❌ Erro ao enviar: ' + (res?.message || 'Verifique a conexão.'));
+    alert('Erro ao enviar: ' + (res?.message || 'Verifique a conexao.'));
   }
 }
 
@@ -1018,11 +1066,11 @@ async function carregarHistoricoFaltas() {
           <span><i class="far fa-calendar"></i> ${f.dataFalta}</span>
           <span class="hf-status">${f.status || 'ENVIADO'}</span>
           ${f.obs ? `<span style="color:var(--text-3);">${f.obs}</span>` : ''}
-          ${f.link ? `<a href="${f.link}" target="_blank" style="color:var(--navy);font-size:.7rem;font-weight:700;">📎 Ver Anexo</a>` : ''}
+          ${f.link ? `<a href="${f.link}" target="_blank" style="color:var(--navy);font-size:.7rem;font-weight:700;">Ver Anexo</a>` : ''}
         </div>
       </div>`).join('');
   } else {
-    div.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><p>Sem histórico.</p></div>';
+    div.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><p>Sem historico.</p></div>';
   }
 }
 
@@ -1070,7 +1118,7 @@ async function carregarMateriais(f = null) {
         if (tit) tit.innerText = 'Materiais';
       } else {
         btnV.onclick = () => carregarMateriais(null);
-        if (tit) tit.innerText = '← Voltar';
+        if (tit) tit.innerText = 'Voltar';
       }
     }
     renderMateriais(materialsCache);
@@ -1115,8 +1163,21 @@ function renderMateriais(items) {
 }
 
 // ============================================================
-// CONCORRENTES
+// CONCORRENTES — sincroniza com backend, fallback local
 // ============================================================
+async function carregarConcorrentesBackend() {
+  try {
+    const res = await apiCall('getConcorrentes', {}, false);
+    if (res?.status === 'success' && res.data?.length) {
+      CONCORRENTES = res.data;
+      localStorage.setItem('mhnet_concorrentes', JSON.stringify(CONCORRENTES));
+    }
+  } catch(e) {
+    // usa dados locais como fallback
+  }
+  inicializarConcorrentes();
+}
+
 function inicializarConcorrentes() {
   renderGridConcorrentes();
 }
@@ -1130,8 +1191,10 @@ function renderGridConcorrentes() {
       <div class="comp-name">${c.name}</div>
       <div class="comp-type">${c.type}</div>
       ${isAdminUser() ? `<div style="margin-top:6px;display:flex;gap:4px;">
-        <button onclick="event.stopPropagation();editarConcorrente('${c.id}')" style="flex:1;background:#dbeafe;color:#1d4ed8;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">✏️ Editar</button>
-        <button onclick="event.stopPropagation();excluirConcorrente('${c.id}')" style="flex:1;background:#fee2e2;color:#b91c1c;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">🗑️</button>
+        <button onclick="event.stopPropagation();editarConcorrente('${c.id}')"
+          style="flex:1;background:#dbeafe;color:#1d4ed8;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">Editar</button>
+        <button onclick="event.stopPropagation();excluirConcorrente('${c.id}')"
+          style="flex:1;background:#fee2e2;color:#b91c1c;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">Excluir</button>
       </div>` : ''}
     </div>`).join('');
 }
@@ -1140,9 +1203,8 @@ function selecionarConcorrente(id) {
   compSelecionado = CONCORRENTES.find(c => c.id === id);
   if (!compSelecionado) return;
   document.querySelectorAll('.comp-card').forEach(c => c.classList.remove('selected'));
-  document.querySelectorAll('.comp-card').forEach(c => {
-    if (c.querySelector('.comp-name')?.innerText === compSelecionado.name) c.classList.add('selected');
-  });
+  event.currentTarget?.classList.add('selected');
+
   const det = document.getElementById('compDetail');
   det.classList.remove('hidden');
   det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1150,8 +1212,8 @@ function selecionarConcorrente(id) {
   document.getElementById('compDetailLogo').innerText = compSelecionado.sigla;
   document.getElementById('compDetailName').innerText = compSelecionado.name;
   document.getElementById('compDetailType').innerText = compSelecionado.type;
-  document.getElementById('compPros').innerHTML = compSelecionado.pros.map(p => `<div class="pc-item">${p}</div>`).join('');
-  document.getElementById('compCons').innerHTML = compSelecionado.cons.map(c => `<div class="pc-item">${c}</div>`).join('');
+  document.getElementById('compPros').innerHTML = (compSelecionado.pros || []).map(p => `<div class="pc-item">${p}</div>`).join('');
+  document.getElementById('compCons').innerHTML = (compSelecionado.cons || []).map(c => `<div class="pc-item">${c}</div>`).join('');
   document.getElementById('compMhnet').innerText = compSelecionado.mhnet;
   const resp = document.getElementById('compAiResp');
   resp.classList.add('hidden');
@@ -1179,12 +1241,12 @@ function editarConcorrente(id) {
   document.getElementById('compFormTipo').value  = c.type;
   document.getElementById('compFormCor').value   = c.cor;
   document.getElementById('compFormMhnet').value = c.mhnet;
-  document.getElementById('compFormPros').value  = c.pros.join('\n');
-  document.getElementById('compFormCons').value  = c.cons.join('\n');
+  document.getElementById('compFormPros').value  = (c.pros || []).join('\n');
+  document.getElementById('compFormCons').value  = (c.cons || []).join('\n');
   document.getElementById('modalConcorrente').classList.add('open');
 }
 
-function salvarConcorrente() {
+async function salvarConcorrente() {
   const nome  = document.getElementById('compFormNome').value.trim();
   const sigla = document.getElementById('compFormSigla').value.trim().toUpperCase();
   const tipo  = document.getElementById('compFormTipo').value.trim();
@@ -1193,22 +1255,35 @@ function salvarConcorrente() {
   const pros  = document.getElementById('compFormPros').value.split('\n').filter(Boolean);
   const cons  = document.getElementById('compFormCons').value.split('\n').filter(Boolean);
   if (!nome || !sigla) { alert('Preencha nome e sigla!'); return; }
+
+  showLoading(true);
+
   if (editingCompId) {
     const idx = CONCORRENTES.findIndex(c => c.id === editingCompId);
-    if (idx >= 0) CONCORRENTES[idx] = { ...CONCORRENTES[idx], name: nome, sigla, type: tipo, cor, mhnet, pros, cons };
+    const comp = CONCORRENTES[idx];
+    CONCORRENTES[idx] = { ...comp, name: nome, sigla, type: tipo, cor, mhnet, pros, cons };
+    await apiCall('saveConcorrente', { ...CONCORRENTES[idx], _linha: comp._linha }, false);
   } else {
-    CONCORRENTES.push({ id: 'comp_' + Date.now(), name: nome, sigla, type: tipo, cor, mhnet, pros, cons });
+    const id = 'comp_' + Date.now();
+    const novo = { id, name: nome, sigla, type: tipo, cor, mhnet, pros, cons };
+    CONCORRENTES.push(novo);
+    const res = await apiCall('saveConcorrente', novo, false);
+    if (res?.id) novo.id = res.id;
   }
+
+  showLoading(false);
   localStorage.setItem('mhnet_concorrentes', JSON.stringify(CONCORRENTES));
   document.getElementById('modalConcorrente').classList.remove('open');
   renderGridConcorrentes();
-  alert('✅ Concorrente salvo!');
+  alert('Concorrente salvo!');
 }
 
-function excluirConcorrente(id) {
+async function excluirConcorrente(id) {
   if (!confirm('Excluir este concorrente?')) return;
+  const comp = CONCORRENTES.find(c => c.id === id);
   CONCORRENTES = CONCORRENTES.filter(c => c.id !== id);
   localStorage.setItem('mhnet_concorrentes', JSON.stringify(CONCORRENTES));
+  if (comp?._linha) await apiCall('deleteConcorrente', { _linha: comp._linha }, false);
   renderGridConcorrentes();
   document.getElementById('compDetail').classList.add('hidden');
 }
@@ -1218,22 +1293,22 @@ async function analisarConcorrenteIA() {
   const q = document.getElementById('compAiQuestion').value.trim();
   const prompt = q
     ? `No contexto de vendas de internet em Lajeado/RS, sobre o concorrente ${compSelecionado.name}: ${q}. Considere que a MHNET oferece: ${compSelecionado.mhnet}`
-    : `Crie um script de vendas para MHNET abordando cliente da ${compSelecionado.name}. Mencione 2 desvantagens do concorrente e 2 vantagens da MHNET. Seja objetivo, máximo 5 linhas.`;
+    : `Crie um script de vendas para MHNET abordando cliente da ${compSelecionado.name}. Mencione 2 desvantagens do concorrente e 2 vantagens da MHNET. Seja objetivo, maximo 5 linhas.`;
 
   const resp = document.getElementById('compAiResp');
   resp.classList.remove('hidden');
   resp.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analisando...';
 
   const answer = await callGeminiDirect(prompt);
-  resp.innerHTML = answer || 'IA indisponível no momento. Tente novamente.';
+  resp.innerHTML = answer || 'IA indisponivel no momento. Tente novamente.';
 }
 
 // ============================================================
-// IA HÍBRIDA — Gemini direto com fallback backend
+// IA HÍBRIDA — Gemini direto
 // ============================================================
 async function callGeminiDirect(userPrompt) {
   try {
-    const fullPrompt = `${MHNET_CONTEXT}\n\nPergunta/Solicitação: ${userPrompt}`;
+    const fullPrompt = `${MHNET_CONTEXT}\n\nPergunta/Solicitacao: ${userPrompt}`;
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1242,17 +1317,12 @@ async function callGeminiDirect(userPrompt) {
         generationConfig: { maxOutputTokens: 500, temperature: 0.7 }
       })
     });
-    if (!res.ok) {
-      console.warn('Gemini HTTP', res.status);
-      AI_DISPONIVEL = false;
-      return null;
-    }
+    if (!res.ok) { AI_DISPONIVEL = false; return null; }
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (text) { AI_DISPONIVEL = true; return text; }
     return null;
   } catch(e) {
-    console.warn('Gemini error:', e.message);
     AI_DISPONIVEL = false;
     return null;
   }
@@ -1263,15 +1333,14 @@ async function callGeminiDirect(userPrompt) {
 // ============================================================
 async function combaterObjecaoGeral() {
   const o = document.getElementById('inputObjecaoGeral').value.trim();
-  if (!o) { alert('Informe a objeção!'); return; }
+  if (!o) { alert('Informe a objecao!'); return; }
   const div = document.getElementById('resultadoObjecaoGeral');
   div.classList.remove('hidden');
   div.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando resposta...';
 
-  const prompt = `Você é um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empática em até 4 linhas para contornar essa objeção.`;
+  const prompt = `Voce e um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empatica em ate 4 linhas para contornar essa objecao.`;
   let answer = await callGeminiDirect(prompt);
 
-  // Fallback backend
   if (!answer) {
     div.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando servidor...';
     const res = await apiCall('solveObjection', { objection: o }, false);
@@ -1282,22 +1351,22 @@ async function combaterObjecaoGeral() {
     div.innerHTML = answer;
     div.style.color = 'var(--text-1)';
   } else {
-    div.innerHTML = '⚠️ IA indisponível no momento. Verifique sua conexão.';
+    div.innerHTML = 'IA indisponivel no momento. Verifique sua conexao.';
     div.style.color = 'var(--danger)';
   }
 }
 
 async function combaterObjecaoLead() {
   const o = document.getElementById('inputObjecaoLead').value.trim();
-  if (!o) { alert('Informe a objeção!'); return; }
-  const prompt = `Você é um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empática em até 4 linhas.`;
+  if (!o) { alert('Informe a objecao!'); return; }
+  const prompt = `Voce e um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empatica em ate 4 linhas.`;
   let answer = await callGeminiDirect(prompt);
   if (!answer) {
     const res = await apiCall('solveObjection', { objection: o }, false);
     answer = res?.answer;
   }
   if (answer) document.getElementById('respostaObjecaoLead').value = answer;
-  else alert('⚠️ IA indisponível. Tente novamente.');
+  else alert('IA indisponivel. Tente novamente.');
 }
 
 async function salvarObjecaoLead() {
@@ -1308,20 +1377,20 @@ async function salvarObjecaoLead() {
     objection: document.getElementById('inputObjecaoLead').value,
     answer:    document.getElementById('respostaObjecaoLead').value
   });
-  alert('✅ Objeção salva!');
+  alert('Objecao salva!');
 }
 
 async function gerarCoachIA() {
   showLoading(true);
-  const prompt = 'Dê uma frase motivacional curta e poderosa para um vendedor externo de internet porta a porta. Máximo 2 linhas. Seja criativo e energizante.';
+  const prompt = 'De uma frase motivacional curta e poderosa para um vendedor externo de internet porta a porta. Maximo 2 linhas. Seja criativo e energizante.';
   let answer = await callGeminiDirect(prompt);
   if (!answer) {
     const res = await apiCall('askAI', { question: prompt }, false);
     answer = res?.answer;
   }
   showLoading(false);
-  if (answer) alert('💪 ' + answer);
-  else alert('⚠️ IA indisponível no momento. Tente novamente.');
+  if (answer) alert(answer);
+  else alert('IA indisponivel no momento. Tente novamente.');
 }
 
 // ============================================================
@@ -1331,7 +1400,7 @@ function consultarPlanosIA() {
   document.getElementById('chatModal').classList.add('open');
   const hist = document.getElementById('chatHistory');
   if (!hist.children.length) {
-    hist.innerHTML = '<div class="c-msg ai">👋 Olá! Sou o assistente MHNET. Posso ajudar com planos, scripts de vendas, objeções e muito mais!</div>';
+    hist.innerHTML = '<div class="c-msg ai">Ola! Sou o assistente MHNET. Posso ajudar com planos, scripts de vendas, objecoes e muito mais!</div>';
   }
 }
 
@@ -1351,14 +1420,13 @@ async function enviarMensagemChat() {
   hist.scrollTop = hist.scrollHeight;
 
   let answer = await callGeminiDirect(m);
-
   if (!answer) {
     const res = await apiCall('askAI', { question: m }, false);
     answer = res?.answer;
   }
 
   const el = document.getElementById(typingId);
-  if (el) el.outerHTML = `<div class="c-msg ai">${answer || '⚠️ IA temporariamente indisponível. Tente novamente.'}</div>`;
+  if (el) el.outerHTML = `<div class="c-msg ai">${answer || 'IA temporariamente indisponivel. Tente novamente.'}</div>`;
   hist.scrollTop = hist.scrollHeight;
 }
 
@@ -1366,7 +1434,7 @@ async function enviarMensagemChat() {
 // GPS
 // ============================================================
 async function buscarEnderecoGPS() {
-  if (!navigator.geolocation) { alert('GPS indisponível.'); return; }
+  if (!navigator.geolocation) { alert('GPS indisponivel.'); return; }
   showLoading(true);
   navigator.geolocation.getCurrentPosition(async pos => {
     try {
@@ -1379,11 +1447,11 @@ async function buscarEnderecoGPS() {
         setV('leadEndereco', a.road || a.pedestrian);
         setV('leadBairro',   a.suburb || a.neighbourhood || a.quarter || a.city_district);
         setV('leadCidade',   a.city || a.town || a.village || a.municipality);
-        alert('✅ Endereço preenchido!');
+        alert('Endereco preenchido!');
       }
-    } catch(e) { alert('Erro ao obter endereço.'); }
+    } catch(e) { alert('Erro ao obter endereco.'); }
     showLoading(false);
-  }, () => { showLoading(false); alert('Permissão GPS negada.'); }, { timeout: 10000 });
+  }, () => { showLoading(false); alert('Permissao GPS negada.'); }, { timeout: 10000 });
 }
 
 // ============================================================
@@ -1396,7 +1464,7 @@ async function gerirEquipe(acao) {
   const meta  = document.getElementById('cfgMeta').value;
   if (!nome) { alert('Informe o nome!'); return; }
   await apiCall('manageTeam', { acao, nome, meta });
-  alert('✅ Feito!');
+  alert('Feito!');
   carregarVendedores();
   document.getElementById('cfgNomeVendedor').value = '';
 }
@@ -1412,7 +1480,7 @@ async function executarTransferenciaLote() {
   if (from === to)   { alert('Origem e destino iguais!'); return; }
   if (!confirm(`Transferir todos os leads de ${from} para ${to}?`)) return;
   const res = await apiCall('transferAllLeads', { from, to });
-  if (res?.status === 'success') alert(`✅ ${res.count} leads transferidos!`);
+  if (res?.status === 'success') alert(`${res.count} leads transferidos!`);
   document.getElementById('modalTransferencia').classList.remove('open');
   carregarLeads();
 }
@@ -1430,7 +1498,6 @@ async function processarFilaSincronizacao() {
     catch(e) { syncQueue.push(item); }
   }
   localStorage.setItem('mhnet_sync_queue', JSON.stringify(syncQueue));
-  if (queue.length) console.log(`✅ ${queue.length} ops offline sincronizadas.`);
 }
 
 // ============================================================
@@ -1464,7 +1531,7 @@ async function apiCall(route, payload = {}, show = true) {
       localStorage.setItem('mhnet_sync_queue', JSON.stringify(syncQueue));
       return { status: 'success', local: true };
     }
-    return { status: 'error', message: 'Conexão falhou' };
+    return { status: 'error', message: 'Conexao falhou' };
   }
 }
 
