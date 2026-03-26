@@ -666,23 +666,31 @@
       </div>
 
       <!-- ============ FTTA ============ -->
-      <div id="ftta" class="page">
-        <div class="pg-hdr">
-          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-          <h2 class="pg-title">FTTA</h2>
-          <button onclick="carregarFtta()" style="margin-left:auto;color:var(--navy);padding:4px;font-size:.95rem;"><i class="fas fa-sync-alt"></i></button>
-        </div>
-        <div class="filter-scroll" style="margin-bottom:14px;">
-          <button class="ftag on" id="fttaTabLaj" onclick="setFttaTab('lajeado')">Lajeado</button>
-          <button class="ftag" id="fttaTabEst" onclick="setFttaTab('estrela')">Estrela</button>
-          <button class="ftag" id="fttaTabPro" onclick="setFttaTab('prospeccao')">Prospecção</button>
-        </div>
-        <div class="search-wrap">
-          <i class="fas fa-search"></i>
-          <input class="search-input" id="searchFtta" placeholder="Buscar..." oninput="filtrarFtta()">
-        </div>
-        <div id="listaFtta" class="lead-list-wrap"></div>
-      </div>
+     <div id="ftta" class="page">
+  <div class="pg-hdr">
+    <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+    <h2 class="pg-title">FTTA</h2>
+    <button onclick="carregarFtta()" style="margin-left:auto;color:var(--navy);padding:4px;font-size:.95rem;"><i class="fas fa-sync-alt"></i></button>
+  </div>
+ 
+  <!-- Abas: Lajeado / Estrela / Prospecção -->
+  <div class="filter-scroll" style="margin-bottom:10px;">
+    <button class="ftag on" id="fttaTabLaj" onclick="setFttaTab('lajeado')">Lajeado</button>
+    <button class="ftag" id="fttaTabEst" onclick="setFttaTab('estrela')">Estrela</button>
+    <button class="ftag" id="fttaTabPro" onclick="setFttaTab('prospeccao')">Prospeccao</button>
+  </div>
+ 
+  <!-- Chips de cidade (preenchidos dinamicamente pelo JS) -->
+  <div class="filter-scroll" id="fttaCidadeChips" style="margin-bottom:10px;"></div>
+ 
+  <!-- Busca por nome / bairro / endereço -->
+  <div class="search-wrap">
+    <i class="fas fa-search"></i>
+    <input class="search-input" id="searchFtta" placeholder="Buscar nome, bairro ou endereco..." oninput="filtrarFtta()">
+  </div>
+ 
+  <div id="listaFtta" class="lead-list-wrap"></div>
+</div>
 
       <!-- ============ CADASTRO LEAD ============ -->
       <div id="cadastroLead" class="page">
@@ -1087,24 +1095,24 @@
   window.addEventListener('offline', () => document.getElementById('offlineBanner').classList.add('show'));
  
 </script>
-  <div id="modalFttaBloco" class="modal2-back">
+<div id="modalFttaBloco" class="modal2-back">
   <div class="modal2-card">
-    <div class="m2-title">✏️ Editar Bloco FTTA</div>
+    <div class="m2-title">Editar Bloco FTTA</div>
     <div class="field">
-      <label>Nome do Bloco / Condomínio</label>
+      <label>Nome do Bloco / Condominio</label>
       <input class="f-input" id="fttaBlocoNome" placeholder="Ex: Residencial das Flores">
     </div>
     <div class="field">
-      <label>Síndico / Responsável</label>
-      <input class="f-input" id="fttaBlocoSindico" placeholder="Nome do síndico">
+      <label>Sindico / Responsavel</label>
+      <input class="f-input" id="fttaBlocoSindico" placeholder="Nome do sindico">
     </div>
     <div class="field">
       <label>Contato (WhatsApp / Telefone)</label>
       <input class="f-input" id="fttaBlocoContato" type="tel" placeholder="Ex: 51 99999-9999">
     </div>
     <div class="field">
-      <label>Endereço</label>
-      <input class="f-input" id="fttaBlocoEndereco" placeholder="Rua e número">
+      <label>Endereco (usado no mapa)</label>
+      <input class="f-input" id="fttaBlocoEndereco" placeholder="Rua e numero">
     </div>
     <div class="field-row">
       <div class="field">
