@@ -1,14 +1,14 @@
 /**
  * ============================================================================
- * MHNET VENDAS — APP.JS V210
- * MUDANÇAS:
- *  - IA: usa Gemini direto com fallback backend; mostra erro real se indisponível
- *  - FTTA LAJEADO/ESTRELA: colunas corretas (Bloco, Sindico, Contato, Endereço, Bairro, Cidade)
- *    + registro de última visita + alerta de retorno (2 meses)
- *    + botão Editar
- *  - FTTA PROSPECÇÃO: colunas corretas + botão "Marcar como Adquado" (move para LAJ ou EST)
- *  - Faltas: envia via backend (e-mail HTML + callmebot) 
- *  - validateAI: valida Gemini ao iniciar
+ * MHNET VENDAS — APP.JS V220
+ * ADIÇÕES:
+ *  #1 LEADS: exibe dataCadastro, ultimaAtualizacao, vendedor, observações
+ *     + animação/destaque para leads sem atualização há 10+ dias (exceto perdas)
+ *  #2 CONCORRENTES: sincroniza com aba "Concorrentes" da planilha
+ *  #3 INDICADORES: dashboard admin (por vendedor/dia) + vendedor (histórico + comparativo)
+ *     + mini-gráfico de barras inline
+ *  #4 FTTA PROSPECÇÃO: colunas corretas + lembrete automático 2 meses
+ *     + formulário para adicionar/editar prospecto + badge de alerta visual
  * ============================================================================
  */
 
@@ -22,25 +22,12 @@ const CALENDAR_URL = 'https://calendar.google.com/calendar/u/0?cid=ZTZlNjQ2OWVkN
 const ADMIN_NAME_CHECK = 'BRUNO GARCIA QUEIROZ';
 const EMAIL_ADMIN = 'bruno.queiroz@mhnet.com.br';
 
-// Status da IA
-let AI_DISPONIVEL = null; // null=não testado, true/false
+let AI_DISPONIVEL = null;
 
 const MHNET_CONTEXT = `
 Você é o assistente de vendas da MHNET, empresa de internet fibra óptica (FTTA) em Lajeado e Estrela/RS, Vale do Taquari.
-
-INFORMAÇÕES DA MHNET:
-- Tecnologia FTTA (Fiber to the Antenna) - fibra óptica de alta performance
-- Cidades: Lajeado, Estrela e região do Vale do Taquari/RS
-- Diferenciais: atendimento local humanizado, técnico no mesmo dia, sem fidelidade longa, preços competitivos
-- Planos: 100Mbps, 200Mbps, 300Mbps, 500Mbps, 1Gbps
-- Serviços: MHPlay (streaming), câmeras de segurança, telefone fixo, IP fixo para negócios
-- Suporte 24h, equipe técnica local, sem call center nacional
-
-OBJECTIONS COMUNS:
-- "Já tenho internet": Questionar qualidade, preço e suporte atual
-- "Está caro": Comparar custo-benefício, velocidade e suporte local
-- "Estou na fidelidade": Verificar data de vencimento e preparar proposta futura
-
+Planos: 100Mbps a 1Gbps. Diferenciais: atendimento local humanizado, técnico no mesmo dia, sem fidelidade longa.
+Serviços: MHPlay (streaming), câmeras de segurança, telefone fixo, IP fixo.
 Responda de forma direta, objetiva e útil para vendedores de campo. Máximo 5 linhas.`;
 
 const VENDEDORES_OFFLINE = [
@@ -50,51 +37,23 @@ const VENDEDORES_OFFLINE = [
 ];
 
 // ============================================================
-// ALMANAQUE DE CONCORRENTES
-// ============================================================
-let CONCORRENTES = JSON.parse(localStorage.getItem('mhnet_concorrentes') || 'null') || [
-  {
-    id: 'vero', name: 'Vero Internet', type: 'Fibra Óptica', cor: '#1565c0', sigla: 'VR',
-    pros: ['Marca consolidada no RS','Alta cobertura urbana','App mobile completo','Velocidades até 1 Gbps'],
-    cons: ['Preços mais altos','Fidelidade de 12 meses','Suporte por vezes lento','Pouca flexibilidade nos planos'],
-    mhnet: 'MHNET oferece melhor custo-benefício, atendimento humanizado local, sem fidelidade longa e com velocidades similares a preço menor.'
-  },
-  {
-    id: 'claro', name: 'Claro NET', type: 'Fibra + TV', cor: '#e53935', sigla: 'CL',
-    pros: ['Combo Fibra + TV + Móvel','Marca nacional reconhecida','Grande infraestrutura'],
-    cons: ['Preços elevados','Contratos longos e multas altas','SAC difícil','Reajustes anuais agressivos'],
-    mhnet: 'MHNET tem atendimento local ágil, sem surpresas na fatura, preços fixos sem reajuste abusivo.'
-  },
-  {
-    id: 'tim', name: 'TIM Live', type: 'Fibra + Móvel', cor: '#1a237e', sigla: 'TM',
-    pros: ['Integração com plano móvel TIM','Cobertura em cidades menores','Promoções de entrada'],
-    cons: ['Qualidade variável por região','Fidelidade de 12 meses','Suporte centralizado'],
-    mhnet: 'MHNET é empresa regional com infraestrutura própria, mais estabilidade e suporte técnico local no mesmo dia.'
-  },
-  {
-    id: 'vivo', name: 'Vivo Fibra', type: 'Fibra + Serviços', cor: '#7b1fa2', sigla: 'VV',
-    pros: ['Marca forte','Combo com TV e serviços','Alta velocidade','Cobertura nacional'],
-    cons: ['Preços muito altos','Burocracia no suporte','Fidelidade longa','Reajuste anual automático'],
-    mhnet: 'MHNET oferece planos acessíveis, instalação rápida, sem burocracia e com técnico na cidade.'
-  }
-];
-
-// ============================================================
 // ESTADO GLOBAL
 // ============================================================
-let loggedUser      = localStorage.getItem('loggedUser') || null;
-let leadsCache      = [];
-let vendorsCache    = [];
-let tasksCache      = [];
-let materialsCache  = [];
-let fttaCache       = { lajeado: [], estrela: [], prospeccao: [] };
-let fttaTabAtual    = 'lajeado';
+let loggedUser          = localStorage.getItem('loggedUser') || null;
+let leadsCache          = [];
+let vendorsCache        = [];
+let tasksCache          = [];
+let materialsCache      = [];
+let concorrentesCache   = [];
+let fttaCache           = { lajeado: [], estrela: [], prospeccao: [] };
+let fttaTabAtual        = 'lajeado';
 let leadAtualParaAgendar = null;
-let currentFolderId = null;
-let editingLeadIndex = null;
-let compSelecionado  = null;
-let editingCompId   = null;
-let editingFttaItem = null; // para modal de edição FTTA
+let currentFolderId     = null;
+let editingLeadIndex    = null;
+let compSelecionado     = null;
+let editingCompId       = null;
+let editingFttaItem     = null;
+let editingProspeccaoItem = null;
 let syncQueue = JSON.parse(localStorage.getItem('mhnet_sync_queue') || '[]');
 
 function isAdminUser() {
@@ -114,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
     if (navigator.onLine) {
       processarFilaSincronizacao();
-      // Valida IA em background
       validarIA();
     }
   }
@@ -141,28 +99,16 @@ function instalarPWA() {
   }
 }
 
-// ============================================================
-// VALIDAÇÃO DA IA
-// ============================================================
 async function validarIA() {
   try {
-    // Testa Gemini diretamente
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: 'Responda somente: IA OK' }] }],
-        generationConfig: { maxOutputTokens: 10, temperature: 0 }
-      })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'Responda somente: IA OK' }] }], generationConfig: { maxOutputTokens: 10, temperature: 0 } })
     });
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    AI_DISPONIVEL = text.toLowerCase().includes('ok') || text.length > 0;
-  } catch(e) {
-    AI_DISPONIVEL = false;
-    console.warn('Gemini indisponível no frontend:', e.message);
-  }
-  console.log('IA disponível:', AI_DISPONIVEL);
+    AI_DISPONIVEL = text.length > 0;
+  } catch(e) { AI_DISPONIVEL = false; }
 }
 
 function initApp() {
@@ -188,7 +134,7 @@ function initApp() {
 
   carregarLeads(false);
   carregarTarefas(false);
-  inicializarConcorrentes();
+  carregarConcorrentes();
   navegarPara('dashboard');
 }
 
@@ -246,7 +192,6 @@ function navegarPara(pageId) {
   const navMap = { dashboard:'navDash', gestaoLeads:'navLeads', tarefas:'navTasks', ftta:'navFtta' };
   document.querySelectorAll('.nav-i').forEach(n => n.classList.remove('on'));
   if (navMap[pageId]) document.getElementById(navMap[pageId])?.classList.add('on');
-
   document.querySelectorAll('.dsb-item').forEach(i => i.classList.remove('on'));
 
   if (pageId === 'dashboard')    { atualizarDashboard(); verificarAgendamentosHoje(); }
@@ -329,6 +274,32 @@ function renderLeads(lista = null) {
   renderListaLeadsHTML(final, 'listaLeadsGestao');
 }
 
+/**
+ * Calcula quantos dias se passaram desde a última atualização do lead
+ * Retorna null se não houver data; retorna -1 se status for perda/sem interesse
+ */
+function diasSemAtualizacao(lead) {
+  const statusPerda = ['Sem Interesse', 'Perda', 'Desistiu', 'Não tem interesse'];
+  if (statusPerda.some(s => String(lead.status || '').toLowerCase().includes(s.toLowerCase()))) {
+    return -1; // Não sinaliza perdas
+  }
+  const ref = lead.ultimaAtualizacao || lead.dataCadastro || lead.timestamp;
+  if (!ref) return null;
+  // Tenta parsear dd/MM/yyyy ou dd/MM/yyyy HH:mm
+  let dt = null;
+  const str = String(ref).split(' ')[0]; // pega só a data
+  if (str.includes('/')) {
+    const p = str.split('/');
+    if (p.length === 3) dt = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+  } else if (str.includes('-')) {
+    dt = new Date(str);
+  }
+  if (!dt || isNaN(dt)) return null;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  dt.setHours(0,0,0,0);
+  return Math.floor((hoje - dt) / (1000 * 60 * 60 * 24));
+}
+
 function renderListaLeadsHTML(lista, containerId = 'listaLeadsGestao') {
   const div = document.getElementById(containerId);
   if (!div) return;
@@ -343,25 +314,54 @@ function renderListaLeadsHTML(lista, containerId = 'listaLeadsGestao') {
     if (s === 'Novo')          return 'novo';
     return 'default';
   };
+
   div.innerHTML = lista.map(l => {
     const idx = leadsCache.indexOf(l);
     const fone = String(l.telefone || '').replace(/\D/g, '');
     const endCompleto = encodeURIComponent([l.endereco, l.bairro, l.cidade].filter(Boolean).join(', '));
+    const dias = diasSemAtualizacao(l);
+    const semAtualizar = dias !== null && dias !== -1 && dias >= 10;
+
+    // Estilo do card: destaque laranja/vermelho se sem atualização há 10+ dias
+    let cardStyle = '';
+    let alertaBadge = '';
+    if (semAtualizar) {
+      cardStyle = 'border-left: 3px solid #f59e0b; animation: pulseAlert 2.5s ease-in-out infinite;';
+      alertaBadge = `<div style="display:flex;align-items:center;gap:4px;font-size:.62rem;font-weight:800;color:#92400e;background:#fff7ed;border:1px solid #fde68a;border-radius:5px;padding:2px 7px;margin-bottom:6px;">
+        <i class="fas fa-clock"></i> Sem atualização há ${dias} dias
+      </div>`;
+    }
+
+    // Data de cadastro e última atualização
+    const metaInfo = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+      ${l.dataCadastro ? `<span style="font-size:.62rem;color:var(--text-3);"><i class="fas fa-calendar-plus" style="margin-right:2px;opacity:.6;"></i>${l.dataCadastro}</span>` : ''}
+      ${l.ultimaAtualizacao ? `<span style="font-size:.62rem;color:var(--text-3);"><i class="fas fa-pen" style="margin-right:2px;opacity:.6;"></i>${l.ultimaAtualizacao}</span>` : ''}
+      ${isAdminUser() && l.vendedor ? `<span style="font-size:.62rem;color:var(--navy);font-weight:700;"><i class="fas fa-user" style="margin-right:2px;"></i>${l.vendedor}</span>` : ''}
+    </div>`;
+
+    // Trecho de observação (máx 60 chars)
+    const obsPreview = l.observacao && l.observacao.length > 0
+      ? `<div style="font-size:.72rem;color:var(--text-2);background:var(--surface);border-radius:6px;padding:5px 8px;margin-bottom:6px;line-height:1.4;border-left:2px solid var(--border);">${String(l.observacao).slice(0,80)}${l.observacao.length > 80 ? '...' : ''}</div>`
+      : '';
+
     return `
-    <div class="lead-card">
+    <div class="lead-card" style="${cardStyle}">
+      ${alertaBadge}
       <div class="lc-top">
         <div class="lc-name" onclick="abrirLeadDetalhes(${idx})">${l.nomeLead || '-'}</div>
         <span class="badge ${badgeClass(l.status)}">${l.status || 'Novo'}</span>
       </div>
+      ${metaInfo}
       <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${l.bairro || '-'} · ${l.cidade || '-'}</div>
       ${l.telefone ? `<div class="lc-phone"><i class="fas fa-phone" style="font-size:.7rem;opacity:.6;"></i> ${l.telefone}</div>` : ''}
       ${l.provedor ? `<div class="lc-provedor"><i class="fas fa-wifi"></i> ${l.provedor}</div>` : ''}
+      ${obsPreview}
       ${l.agendamento ? `<div class="lc-sched"><i class="fas fa-clock"></i> ${l.agendamento.split(' ')[0]}</div>` : ''}
       <div class="lc-btns">
         ${fone ? `<button class="lc-btn call" onclick="ligarPara('${fone}')"><i class="fas fa-phone"></i> Ligar</button>` : ''}
         ${fone ? `<button class="lc-btn whats" onclick="abrirWhatsAppDireto('${fone}')"><i class="fab fa-whatsapp"></i></button>` : ''}
         ${endCompleto ? `<button class="lc-btn map" onclick="abrirMaps('${endCompleto}')"><i class="fas fa-map-marker-alt"></i></button>` : ''}
-        <button class="lc-btn detail" onclick="abrirLeadDetalhes(${idx})"><i class="fas fa-expand-alt"></i> Detalhes</button>
+        <button class="lc-btn detail" onclick="abrirLeadDetalhes(${idx})"><i class="fas fa-expand-alt"></i> Ver</button>
       </div>
     </div>`;
   }).join('');
@@ -427,6 +427,17 @@ function abrirLeadDetalhes(index) {
   setVal('inputObjecaoLead',   l.objecao || '');
   setVal('respostaObjecaoLead', l.respostaObjecao || '');
 
+  // Vendedor e datas no modal
+  const vendEl = document.getElementById('modalLeadVendedor');
+  if (vendEl) {
+    vendEl.innerText = l.vendedor || '-';
+    vendEl.closest?.('.modal-meta-row')?.classList?.toggle('hidden', !l.vendedor && !isAdminUser());
+  }
+  const dcEl = document.getElementById('modalLeadDataCadastro');
+  if (dcEl) dcEl.innerText = l.dataCadastro || '-';
+  const uaEl = document.getElementById('modalLeadUltAtual');
+  if (uaEl) uaEl.innerText = l.ultimaAtualizacao || '-';
+
   const fidBox = document.getElementById('modalFidelidadeBox');
   if (l.fidelidade) {
     const fid = new Date(l.fidelidade);
@@ -470,9 +481,7 @@ function abrirLeadDetalhes(index) {
   document.getElementById('leadModal').classList.add('open');
 }
 
-function fecharLeadModal() {
-  document.getElementById('leadModal').classList.remove('open');
-}
+function fecharLeadModal() { document.getElementById('leadModal').classList.remove('open'); }
 
 async function salvarEdicaoModal() {
   if (!leadAtualParaAgendar) return;
@@ -483,6 +492,7 @@ async function salvarEdicaoModal() {
 
   leadAtualParaAgendar.status = s;
   leadAtualParaAgendar.observacao = o;
+  leadAtualParaAgendar.ultimaAtualizacao = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
   if (d) {
     const [a, m, day] = d.split('-');
     leadAtualParaAgendar.agendamento = `${day}/${m}/${a} ${h || ''}`.trim();
@@ -505,18 +515,12 @@ function editarLeadAtual() {
   if (!leadAtualParaAgendar) return;
   const l = leadAtualParaAgendar;
   const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v || ''; };
-  setVal('leadNome',       l.nomeLead);
-  setVal('leadTelefone',   l.telefone);
-  setVal('leadEndereco',   l.endereco);
-  setVal('leadNumero',     l.numero || '');
-  setVal('leadComplemento',l.complemento || '');
-  setVal('leadBairro',     l.bairro);
-  setVal('leadCidade',     l.cidade);
-  setVal('leadProvedor',   l.provedor);
-  setVal('leadValorPlano', l.valorPlano || '');
-  setVal('leadPlanoAtual', l.planoAtual || '');
-  setVal('leadFidelidade', l.fidelidade || '');
-  setVal('leadObs',        l.observacao);
+  setVal('leadNome', l.nomeLead); setVal('leadTelefone', l.telefone);
+  setVal('leadEndereco', l.endereco); setVal('leadNumero', l.numero || '');
+  setVal('leadComplemento', l.complemento || ''); setVal('leadBairro', l.bairro);
+  setVal('leadCidade', l.cidade); setVal('leadProvedor', l.provedor);
+  setVal('leadValorPlano', l.valorPlano || ''); setVal('leadPlanoAtual', l.planoAtual || '');
+  setVal('leadFidelidade', l.fidelidade || ''); setVal('leadObs', l.observacao);
   const st = document.getElementById('leadStatus'); if (st) st.value = l.status || 'Novo';
   editingLeadIndex = leadsCache.indexOf(l);
   document.getElementById('cadastroTitle').innerText = 'Editar Lead';
@@ -538,21 +542,20 @@ async function enviarLead() {
   if (!nome) { alert('⚠️ Informe o nome do cliente!'); return; }
 
   const p = {
-    vendedor:    loggedUser,
-    nomeLead:    nome,
-    telefone:    document.getElementById('leadTelefone').value,
-    endereco:    [document.getElementById('leadEndereco').value, document.getElementById('leadNumero').value].filter(Boolean).join(', '),
-    numero:      document.getElementById('leadNumero').value,
+    vendedor: loggedUser, nomeLead: nome,
+    telefone: document.getElementById('leadTelefone').value,
+    endereco: [document.getElementById('leadEndereco').value, document.getElementById('leadNumero').value].filter(Boolean).join(', '),
+    numero: document.getElementById('leadNumero').value,
     complemento: document.getElementById('leadComplemento').value,
-    bairro:      document.getElementById('leadBairro').value,
-    cidade:      document.getElementById('leadCidade').value,
-    provedor:    document.getElementById('leadProvedor').value,
-    valorPlano:  document.getElementById('leadValorPlano').value,
-    planoAtual:  document.getElementById('leadPlanoAtual').value,
-    fidelidade:  document.getElementById('leadFidelidade').value,
-    interesse:   document.getElementById('leadInteresse')?.value || 'Médio',
-    status:      document.getElementById('leadStatus').value,
-    observacao:  document.getElementById('leadObs').value,
+    bairro: document.getElementById('leadBairro').value,
+    cidade: document.getElementById('leadCidade').value,
+    provedor: document.getElementById('leadProvedor').value,
+    valorPlano: document.getElementById('leadValorPlano').value,
+    planoAtual: document.getElementById('leadPlanoAtual').value,
+    fidelidade: document.getElementById('leadFidelidade').value,
+    interesse: document.getElementById('leadInteresse')?.value || 'Médio',
+    status: document.getElementById('leadStatus').value,
+    observacao: document.getElementById('leadObs').value,
     novoVendedor: document.getElementById('leadVendedorDestino')?.value || ''
   };
 
@@ -564,10 +567,12 @@ async function enviarLead() {
 
   const res = await apiCall(route, p);
   if (res?.status === 'success' || res?.local) {
+    const now = new Date();
+    const hoje = now.toLocaleDateString('pt-BR');
     if (editingLeadIndex !== null) {
-      leadsCache[editingLeadIndex] = { ...leadsCache[editingLeadIndex], ...p };
+      leadsCache[editingLeadIndex] = { ...leadsCache[editingLeadIndex], ...p, ultimaAtualizacao: hoje };
     } else {
-      leadsCache.unshift({ ...p, timestamp: new Date().toLocaleDateString('pt-BR'), _linha: Date.now() });
+      leadsCache.unshift({ ...p, timestamp: hoje, dataCadastro: hoje, ultimaAtualizacao: hoje, _linha: Date.now() });
     }
     localStorage.setItem('mhnet_leads_cache', JSON.stringify(leadsCache));
     editingLeadIndex = null;
@@ -592,6 +597,7 @@ async function marcarVendaFechada() {
   if (!confirm('Confirmar Venda Fechada? 🎉')) return;
   await apiCall('updateStatus', { vendedor: loggedUser, nomeLead: leadAtualParaAgendar.nomeLead, status: 'Venda Fechada' });
   leadAtualParaAgendar.status = 'Venda Fechada';
+  leadAtualParaAgendar.ultimaAtualizacao = new Date().toLocaleDateString('pt-BR');
   localStorage.setItem('mhnet_leads_cache', JSON.stringify(leadsCache));
   alert('🎉 Parabéns pela venda!');
   fecharLeadModal();
@@ -610,27 +616,21 @@ async function encaminharLeadModal() {
 
 // ============================================================
 // FTTA — LAJEADO / ESTRELA
-// Colunas: A=NomeBloco B=Sindico C=Contato D=Endereço E=Bairro F=Cidade
-//          G=UltimaVisita H=VendedorResponsavel
 // ============================================================
 async function carregarFtta() {
   const div = document.getElementById('listaFtta');
   if (!div) return;
   div.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Carregando...</p></div>';
-
   try {
     const [resL, resE, resP] = await Promise.all([
-      apiCall('getFttaLeads',     { aba: 'FTTA LAJEADO' }, false),
-      apiCall('getFttaLeads',     { aba: 'FTTA ESTRELA' }, false),
+      apiCall('getFttaLeads',      { aba: 'FTTA LAJEADO' }, false),
+      apiCall('getFttaLeads',      { aba: 'FTTA ESTRELA' }, false),
       apiCall('getFttaProspeccao', {}, false)
     ]);
     if (resL?.status === 'success') fttaCache.lajeado    = resL.data || [];
     if (resE?.status === 'success') fttaCache.estrela    = resE.data || [];
     if (resP?.status === 'success') fttaCache.prospeccao = resP.data || [];
-  } catch(e) {
-    console.error('Erro FTTA:', e);
-  }
-
+  } catch(e) { console.error('Erro FTTA:', e); }
   renderFttaLista();
 }
 
@@ -657,105 +657,75 @@ function renderFttaLista(lista = null) {
   if (!lista) lista = fttaCache[fttaTabAtual] || [];
   const div = document.getElementById('listaFtta');
   if (!div) return;
-
   if (!lista.length) {
     div.innerHTML = `<div class="empty-state"><i class="fas fa-network-wired"></i><p>Nenhum registro encontrado.</p></div>`;
     return;
   }
-
-  if (fttaTabAtual === 'prospeccao') {
-    renderFttaProspeccao(lista, div);
-  } else {
-    renderFttaBlocos(lista, div);
-  }
+  if (fttaTabAtual === 'prospeccao') renderFttaProspeccao(lista, div);
+  else renderFttaBlocos(lista, div);
 }
 
-// Renderiza cards de FTTA LAJEADO ou ESTRELA
 function renderFttaBlocos(lista, div) {
   const abaAtual = fttaTabAtual === 'lajeado' ? 'FTTA LAJEADO' : 'FTTA ESTRELA';
-  const hoje = new Date();
-
   div.innerHTML = lista.map((item, idx) => {
     const fone = String(item.contato || '').replace(/\D/g, '');
-    const alertClass = item.alertaVisita ? 'ftta-alert-visita' : '';
-
     return `
-    <div class="lead-card ${alertClass}" style="${item.alertaVisita ? 'border-left: 3px solid #f59e0b;' : ''}">
+    <div class="lead-card" style="${item.alertaVisita ? 'border-left:3px solid #f59e0b;' : ''}">
       <div class="lc-top">
         <div class="lc-name">${item.nomeBloco || '-'}</div>
         ${item.alertaVisita ? `<span class="badge agendado">⚠️ Visitar</span>` : `<span class="badge novo">Ativo</span>`}
       </div>
       <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${item.bairro || '-'} · ${item.cidade || '-'}</div>
-      ${item.sindico ? `<div class="lc-phone" style="font-size:.75rem;color:var(--text-2);"><i class="fas fa-user-tie" style="font-size:.7rem;opacity:.6;margin-right:3px;"></i>${item.sindico}</div>` : ''}
-      ${item.contato ? `<div class="lc-phone"><i class="fas fa-phone" style="font-size:.7rem;opacity:.6;"></i> ${item.contato}</div>` : ''}
+      ${item.sindico ? `<div class="lc-phone" style="font-size:.75rem;color:var(--text-2);"><i class="fas fa-user-tie" style="opacity:.6;margin-right:3px;"></i>${item.sindico}</div>` : ''}
+      ${item.contato ? `<div class="lc-phone"><i class="fas fa-phone" style="opacity:.6;"></i> ${item.contato}</div>` : ''}
       ${item.endereco ? `<div class="lc-city" style="font-size:.7rem;"><i class="fas fa-road" style="margin-right:3px;"></i>${item.endereco}</div>` : ''}
-      
       <div style="display:flex;gap:6px;margin:8px 0 4px;background:var(--surface);border-radius:8px;padding:8px 10px;font-size:.72rem;flex-wrap:wrap;">
-        <div style="flex:1;">
-          <span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Última visita</span>
-          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--warning)' : 'var(--text-1)'};">${item.ultimaVisita || '—'}</span>
-        </div>
-        <div style="flex:1;">
-          <span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Próxima</span>
-          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--danger)' : 'var(--success)'};">${item.proximaVisita || 'Não registrado'}</span>
-        </div>
+        <div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Última visita</span>
+          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--warning)' : 'var(--text-1)'};">${item.ultimaVisita || '—'}</span></div>
+        <div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Próxima</span>
+          <span style="font-weight:700;color:${item.alertaVisita ? 'var(--danger)' : 'var(--success)'};">${item.proximaVisita || 'Não registrado'}</span></div>
       </div>
-
       <div class="lc-btns" style="flex-wrap:wrap;gap:5px;">
         ${fone ? `<button class="lc-btn call" onclick="ligarPara('${fone}')"><i class="fas fa-phone"></i> Ligar</button>` : ''}
         ${fone ? `<button class="lc-btn whats" onclick="abrirWhatsAppDireto('${fone}')"><i class="fab fa-whatsapp"></i></button>` : ''}
         <button class="lc-btn detail" onclick="registrarVisitaFtta(${item._linha},'${abaAtual}')" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0;">
           <i class="fas fa-calendar-check"></i> Registrar Visita
         </button>
-        <button class="lc-btn detail" onclick="abrirEditarFttaBloco(${idx},'${abaAtual}')">
-          <i class="fas fa-edit"></i> Editar
-        </button>
+        <button class="lc-btn detail" onclick="abrirEditarFttaBloco(${idx},'${abaAtual}')"><i class="fas fa-edit"></i> Editar</button>
       </div>
     </div>`;
   }).join('');
 }
 
-// Registra última visita no backend
 async function registrarVisitaFtta(linha, aba) {
   if (!confirm('Registrar visita de hoje neste bloco?')) return;
   showLoading(true);
   const res = await apiCall('updateFttaVisita', { _linha: linha, aba, vendedor: loggedUser }, false);
   showLoading(false);
-  if (res?.status === 'success') {
-    alert('✅ Visita registrada! Próximo retorno em 2 meses.');
-    carregarFtta();
-  } else {
-    alert('❌ Erro ao registrar. Verifique conexão.');
-  }
+  if (res?.status === 'success') { alert('✅ Visita registrada! Próximo retorno em 2 meses.'); carregarFtta(); }
+  else alert('❌ Erro ao registrar. Verifique conexão.');
 }
 
-// Abre modal para editar bloco FTTA
 function abrirEditarFttaBloco(idx, aba) {
   const lista = fttaTabAtual === 'lajeado' ? fttaCache.lajeado : fttaCache.estrela;
   editingFttaItem = { ...lista[idx], aba };
-
   const setV = (id, v) => { const el = document.getElementById(id); if(el) el.value = v || ''; };
-  setV('fttaBlocoNome',     editingFttaItem.nomeBloco);
-  setV('fttaBlocoSindico',  editingFttaItem.sindico);
-  setV('fttaBlocoContato',  editingFttaItem.contato);
-  setV('fttaBlocoEndereco', editingFttaItem.endereco);
-  setV('fttaBlocoBairro',   editingFttaItem.bairro);
-  setV('fttaBlocoCidade',   editingFttaItem.cidade);
-
+  setV('fttaBlocoNome', editingFttaItem.nomeBloco); setV('fttaBlocoSindico', editingFttaItem.sindico);
+  setV('fttaBlocoContato', editingFttaItem.contato); setV('fttaBlocoEndereco', editingFttaItem.endereco);
+  setV('fttaBlocoBairro', editingFttaItem.bairro); setV('fttaBlocoCidade', editingFttaItem.cidade);
   document.getElementById('modalFttaBloco').classList.add('open');
 }
 
 async function salvarEdicaoFttaBloco() {
   if (!editingFttaItem) return;
   const d = {
-    aba:       editingFttaItem.aba,
-    _linha:    editingFttaItem._linha,
+    aba: editingFttaItem.aba, _linha: editingFttaItem._linha,
     nomeBloco: document.getElementById('fttaBlocoNome').value,
-    sindico:   document.getElementById('fttaBlocoSindico').value,
-    contato:   document.getElementById('fttaBlocoContato').value,
-    endereco:  document.getElementById('fttaBlocoEndereco').value,
-    bairro:    document.getElementById('fttaBlocoBairro').value,
-    cidade:    document.getElementById('fttaBlocoCidade').value
+    sindico: document.getElementById('fttaBlocoSindico').value,
+    contato: document.getElementById('fttaBlocoContato').value,
+    endereco: document.getElementById('fttaBlocoEndereco').value,
+    bairro: document.getElementById('fttaBlocoBairro').value,
+    cidade: document.getElementById('fttaBlocoCidade').value
   };
   showLoading(true);
   const res = await apiCall('updateFttaBloco', d, false);
@@ -764,78 +734,471 @@ async function salvarEdicaoFttaBloco() {
     alert('✅ Bloco atualizado!');
     document.getElementById('modalFttaBloco').classList.remove('open');
     carregarFtta();
-  } else {
-    alert('❌ Erro ao salvar.');
-  }
+  } else alert('❌ Erro ao salvar.');
 }
 
-// Renderiza FTTA PROSPECÇÃO
-// Colunas: nome, construtora, dataEntrega, sindico, contato, endereco, bairro, cidade,
-//          ultimaAcao, consultor, proximaAcao, adquado
+// ============================================================
+// FTTA PROSPECÇÃO V220
+// ============================================================
 function renderFttaProspeccao(lista, div) {
-  div.innerHTML = lista.map((item, idx) => {
+  // Conta alertas
+  const alertas = lista.filter(i => i.alertaProxAcao && !String(i.adquado||'').toUpperCase().includes('ADQUADO')).length;
+  let htmlHeader = '';
+  if (alertas > 0) {
+    htmlHeader = `<div style="background:#fff7ed;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:9px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-bell" style="color:#f59e0b;"></i>
+      <div>
+        <div style="font-size:.8rem;font-weight:700;color:#92400e;">${alertas} prospecção${alertas>1?'ões':''} com ação vencida!</div>
+        <div style="font-size:.68rem;color:#b45309;">Registre a ação para manter o controle.</div>
+      </div>
+    </div>`;
+  }
+
+  // Botão para adicionar nova prospecção
+  const btnAdd = isAdminUser() ? `<button onclick="abrirModalNovaProspeccao()" class="btn btn-navy btn-sm" style="margin-bottom:12px;width:100%;"><i class="fas fa-plus"></i> Nova Prospecção</button>` : '';
+
+  div.innerHTML = htmlHeader + btnAdd + lista.map((item, idx) => {
     const fone = String(item.contato || '').replace(/\D/g, '');
     const jaAdquado = String(item.adquado || '').toUpperCase().includes('ADQUADO');
+    const alerta = item.alertaProxAcao && !jaAdquado;
+    const dias = item.diasParaAcao;
+
+    let proxAcaoBadge = '';
+    if (!jaAdquado && item.proximaAcaoCalc) {
+      if (dias !== null && dias <= 0) {
+        proxAcaoBadge = `<span style="font-size:.62rem;font-weight:800;background:#fee2e2;color:#b91c1c;border-radius:5px;padding:2px 7px;"><i class="fas fa-exclamation-triangle"></i> VENCIDA há ${Math.abs(dias)} dias</span>`;
+      } else if (dias !== null && dias <= 7) {
+        proxAcaoBadge = `<span style="font-size:.62rem;font-weight:800;background:#fff7ed;color:#92400e;border-radius:5px;padding:2px 7px;"><i class="fas fa-clock"></i> Ação em ${dias} dias</span>`;
+      }
+    }
 
     return `
-    <div class="lead-card" style="${jaAdquado ? 'opacity:.55;' : ''}">
+    <div class="lead-card" style="${alerta ? 'border-left:3px solid #f59e0b;animation:pulseAlert 2.5s ease-in-out infinite;' : ''}${jaAdquado ? 'opacity:.55;' : ''}">
       <div class="lc-top">
         <div class="lc-name">${item.nome || '-'}</div>
         ${jaAdquado ? `<span class="badge fechado">✅ Adquado</span>` : `<span class="badge negociacao">Prospecção</span>`}
       </div>
+      ${proxAcaoBadge ? `<div style="margin-bottom:6px;">${proxAcaoBadge}</div>` : ''}
       ${item.construtora ? `<div class="lc-city"><i class="fas fa-building" style="margin-right:4px;"></i>${item.construtora}</div>` : ''}
       <div class="lc-city"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i>${item.bairro || '-'} · ${item.cidade || '-'}</div>
       ${item.endereco ? `<div class="lc-city" style="font-size:.7rem;"><i class="fas fa-road" style="margin-right:3px;"></i>${item.endereco}</div>` : ''}
+      ${item.sindico ? `<div class="lc-phone" style="font-size:.75rem;"><i class="fas fa-user-tie" style="opacity:.6;margin-right:3px;"></i>${item.sindico}</div>` : ''}
       
       <div style="display:flex;gap:6px;margin:8px 0 4px;background:var(--surface);border-radius:8px;padding:8px 10px;font-size:.72rem;flex-wrap:wrap;">
         ${item.dataEntrega ? `<div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Entrega prevista</span><span style="font-weight:700;color:var(--text-1);">${item.dataEntrega}</span></div>` : ''}
-        ${item.consultor ? `<div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Consultor</span><span style="font-weight:700;color:var(--text-1);">${item.consultor}</span></div>` : ''}
+        ${item.consultor ? `<div style="flex:1;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Consultor</span><span style="font-weight:700;color:var(--navy);">${item.consultor}</span></div>` : ''}
         ${item.ultimaAcao ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Última ação</span><span style="color:var(--text-2);">${item.ultimaAcao}</span></div>` : ''}
-        ${item.proximaAcao ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Próxima ação</span><span style="color:var(--navy);font-weight:700;">${item.proximaAcao}</span></div>` : ''}
+        ${item.proximaAcaoCalc ? `<div style="flex:1;min-width:100%;"><span style="color:var(--text-3);font-weight:700;font-size:.62rem;display:block;text-transform:uppercase;">Próxima ação (calculada)</span><span style="font-weight:700;color:${alerta ? 'var(--danger)':'var(--navy)'};">${item.proximaAcaoCalc}</span></div>` : ''}
       </div>
 
       <div class="lc-btns" style="flex-wrap:wrap;gap:5px;">
         ${fone ? `<button class="lc-btn call" onclick="ligarPara('${fone}')"><i class="fas fa-phone"></i> Ligar</button>` : ''}
         ${fone ? `<button class="lc-btn whats" onclick="abrirWhatsAppDireto('${fone}')"><i class="fab fa-whatsapp"></i></button>` : ''}
         ${!jaAdquado ? `
-        <button class="lc-btn detail" onclick="confirmarAdquarFtta(${idx})"
-          style="background:#d1fae5;color:#065f46;border-color:#a7f3d0;flex:1;">
-          <i class="fas fa-check-circle"></i> Marcar Adquado
+        <button class="lc-btn detail" onclick="registrarAcaoProspeccao(${idx})" style="background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe;">
+          <i class="fas fa-check-circle"></i> Registrar Ação
+        </button>
+        <button class="lc-btn detail" onclick="confirmarAdquarFtta(${idx})" style="background:#d1fae5;color:#065f46;border-color:#a7f3d0;">
+          <i class="fas fa-network-wired"></i> Marcar Adquado
         </button>` : ''}
+        ${isAdminUser() ? `<button class="lc-btn detail" onclick="abrirEditarProspeccao(${idx})"><i class="fas fa-edit"></i> Editar</button>` : ''}
       </div>
     </div>`;
   }).join('');
 }
 
-// Confirma e move prospecto para FTTA da cidade
+async function registrarAcaoProspeccao(idx) {
+  const item = fttaCache.prospeccao[idx];
+  if (!item) return;
+  if (!confirm(`Registrar ação de hoje para "${item.nome}"?\n→ Próxima ação será calculada para daqui 2 meses.`)) return;
+  showLoading(true);
+  const res = await apiCall('updateFttaProspeccao', {
+    _linha: item._linha, nome: item.nome, construtora: item.construtora,
+    sindico: item.sindico, contato: item.contato, endereco: item.endereco,
+    bairro: item.bairro, cidade: item.cidade, consultor: item.consultor || loggedUser,
+    registrarAcao: true
+  }, false);
+  showLoading(false);
+  if (res?.status === 'success') { alert('✅ Ação registrada! Lembrete em 2 meses.'); carregarFtta(); }
+  else alert('❌ Erro ao registrar.');
+}
+
+function abrirModalNovaProspeccao() {
+  editingProspeccaoItem = null;
+  document.getElementById('prosTitulo').innerText = 'Nova Prospecção';
+  ['prosNome','prosConstrutora','prosSindico','prosContato','prosEndereco','prosBairro','prosCidade','prosConsultor','prosDataEntrega'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('modalProspeccao').classList.add('open');
+}
+
+function abrirEditarProspeccao(idx) {
+  const item = fttaCache.prospeccao[idx];
+  if (!item) return;
+  editingProspeccaoItem = item;
+  document.getElementById('prosTitulo').innerText = 'Editar Prospecção';
+  const setV = (id, v) => { const el = document.getElementById(id); if(el) el.value = v||''; };
+  setV('prosNome', item.nome); setV('prosConstrutora', item.construtora);
+  setV('prosSindico', item.sindico); setV('prosContato', item.contato);
+  setV('prosEndereco', item.endereco); setV('prosBairro', item.bairro);
+  setV('prosCidade', item.cidade); setV('prosConsultor', item.consultor);
+  document.getElementById('modalProspeccao').classList.add('open');
+}
+
+async function salvarProspeccao() {
+  const nome = document.getElementById('prosNome').value.trim();
+  if (!nome) { alert('Informe o nome!'); return; }
+  const d = {
+    nome, construtora: document.getElementById('prosConstrutora').value,
+    sindico: document.getElementById('prosSindico').value,
+    contato: document.getElementById('prosContato').value,
+    endereco: document.getElementById('prosEndereco').value,
+    bairro: document.getElementById('prosBairro').value,
+    cidade: document.getElementById('prosCidade').value,
+    consultor: document.getElementById('prosConsultor').value || loggedUser,
+    dataEntrega: document.getElementById('prosDataEntrega')?.value || ''
+  };
+  showLoading(true);
+  let res;
+  if (editingProspeccaoItem) {
+    res = await apiCall('updateFttaProspeccao', { ...d, _linha: editingProspeccaoItem._linha }, false);
+  } else {
+    res = await apiCall('addFttaProspeccao', d, false);
+  }
+  showLoading(false);
+  if (res?.status === 'success') {
+    alert('✅ Salvo!');
+    document.getElementById('modalProspeccao').classList.remove('open');
+    carregarFtta();
+  } else alert('❌ Erro ao salvar.');
+}
+
 async function confirmarAdquarFtta(idx) {
   const item = fttaCache.prospeccao[idx];
   if (!item) return;
-
   const cidadeLower = String(item.cidade || '').toLowerCase();
   const destino = cidadeLower.includes('estrela') ? 'FTTA ESTRELA' : 'FTTA LAJEADO';
-
   if (!confirm(`Marcar "${item.nome}" como Adquado?\nSerá movido para ${destino}.`)) return;
-
   showLoading(true);
-  const res = await apiCall('adquarFttaProspeccao', {
-    _linha:     item._linha,
-    nome:       item.nome,
-    sindico:    item.sindico,
-    contato:    item.contato,
-    endereco:   item.endereco,
-    bairro:     item.bairro,
-    cidade:     item.cidade,
-    consultor:  item.consultor
-  }, false);
+  const res = await apiCall('adquarFttaProspeccao', { _linha: item._linha, nome: item.nome, sindico: item.sindico, contato: item.contato, endereco: item.endereco, bairro: item.bairro, cidade: item.cidade, consultor: item.consultor }, false);
   showLoading(false);
+  if (res?.status === 'success') { alert(`✅ Movido para ${res.abaDestino || destino}!`); carregarFtta(); }
+  else alert('❌ Erro ao mover. Tente novamente.');
+}
 
-  if (res?.status === 'success') {
-    alert(`✅ Movido para ${res.abaDestino || destino}!`);
-    carregarFtta();
-  } else {
-    alert('❌ Erro ao mover. Tente novamente.');
+// ============================================================
+// CONCORRENTES V220 — Sincroniza com planilha
+// ============================================================
+async function carregarConcorrentes() {
+  if (!navigator.onLine) {
+    const saved = localStorage.getItem('mhnet_concorrentes_v2');
+    if (saved) try { concorrentesCache = JSON.parse(saved); } catch(e) {}
+    renderGridConcorrentes();
+    return;
   }
+  const res = await apiCall('getConcorrentes', {}, false);
+  if (res?.status === 'success' && res.data?.length > 0) {
+    concorrentesCache = res.data;
+    localStorage.setItem('mhnet_concorrentes_v2', JSON.stringify(concorrentesCache));
+  } else {
+    // Fallback para localStorage legado
+    const saved = localStorage.getItem('mhnet_concorrentes_v2') || localStorage.getItem('mhnet_concorrentes');
+    if (saved) try { concorrentesCache = JSON.parse(saved); } catch(e) {}
+  }
+  renderGridConcorrentes();
+}
+
+function inicializarConcorrentes() { carregarConcorrentes(); }
+
+function renderGridConcorrentes() {
+  const grid = document.getElementById('compGrid');
+  if (!grid) return;
+  if (!concorrentesCache.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:span 2"><i class="fas fa-binoculars"></i><p>Carregando concorrentes...</p></div>';
+    return;
+  }
+  grid.innerHTML = concorrentesCache.map(c => `
+    <div class="comp-card" onclick="selecionarConcorrente('${c.id || c._linha}')">
+      <div class="comp-logo" style="background:${c.cor || c.color || '#1565c0'};">${c.sigla}</div>
+      <div class="comp-name">${c.name}</div>
+      <div class="comp-type">${c.type}</div>
+      ${isAdminUser() ? `<div style="margin-top:6px;display:flex;gap:4px;">
+        <button onclick="event.stopPropagation();editarConcorrente('${c.id || c._linha}')" style="flex:1;background:#dbeafe;color:#1d4ed8;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">✏️ Editar</button>
+        <button onclick="event.stopPropagation();excluirConcorrente('${c.id || c._linha}')" style="flex:1;background:#fee2e2;color:#b91c1c;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">🗑️</button>
+      </div>` : ''}
+    </div>`).join('');
+}
+
+function selecionarConcorrente(id) {
+  compSelecionado = concorrentesCache.find(c => String(c.id || c._linha) === String(id));
+  if (!compSelecionado) return;
+  document.querySelectorAll('.comp-card').forEach(c => c.classList.remove('selected'));
+  const det = document.getElementById('compDetail');
+  det.classList.remove('hidden');
+  det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('compDetailLogo').style.background = compSelecionado.cor || '#1565c0';
+  document.getElementById('compDetailLogo').innerText = compSelecionado.sigla;
+  document.getElementById('compDetailName').innerText = compSelecionado.name;
+  document.getElementById('compDetailType').innerText = compSelecionado.type;
+  document.getElementById('compPros').innerHTML = compSelecionado.pros.map(p => `<div class="pc-item">${p}</div>`).join('');
+  document.getElementById('compCons').innerHTML = compSelecionado.cons.map(c => `<div class="pc-item">${c}</div>`).join('');
+  document.getElementById('compMhnet').innerText = compSelecionado.mhnet;
+  const resp = document.getElementById('compAiResp');
+  resp.classList.add('hidden'); resp.innerText = '';
+  document.getElementById('compAiQuestion').value = '';
+}
+
+function abrirModalNovoConcorrente() {
+  editingCompId = null;
+  document.getElementById('compModalTitle').innerText = 'Novo Concorrente';
+  ['compFormNome','compFormSigla','compFormTipo','compFormMhnet','compFormPros','compFormCons'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  const cor = document.getElementById('compFormCor'); if(cor) cor.value = '#1565c0';
+  document.getElementById('modalConcorrente').classList.add('open');
+}
+
+function editarConcorrente(id) {
+  const c = concorrentesCache.find(x => String(x.id || x._linha) === String(id));
+  if (!c) return;
+  editingCompId = id;
+  document.getElementById('compModalTitle').innerText = 'Editar Concorrente';
+  document.getElementById('compFormNome').value  = c.name;
+  document.getElementById('compFormSigla').value = c.sigla;
+  document.getElementById('compFormTipo').value  = c.type;
+  document.getElementById('compFormCor').value   = c.cor || '#1565c0';
+  document.getElementById('compFormMhnet').value = c.mhnet;
+  document.getElementById('compFormPros').value  = Array.isArray(c.pros) ? c.pros.join('\n') : String(c.pros||'');
+  document.getElementById('compFormCons').value  = Array.isArray(c.cons) ? c.cons.join('\n') : String(c.cons||'');
+  document.getElementById('modalConcorrente').classList.add('open');
+}
+
+async function salvarConcorrente() {
+  const nome  = document.getElementById('compFormNome').value.trim();
+  const sigla = document.getElementById('compFormSigla').value.trim().toUpperCase();
+  if (!nome || !sigla) { alert('Preencha nome e sigla!'); return; }
+  const d = {
+    name: nome, sigla, type: document.getElementById('compFormTipo').value.trim(),
+    cor: document.getElementById('compFormCor').value,
+    mhnet: document.getElementById('compFormMhnet').value.trim(),
+    pros: document.getElementById('compFormPros').value.split('\n').filter(Boolean),
+    cons: document.getElementById('compFormCons').value.split('\n').filter(Boolean)
+  };
+  if (editingCompId) {
+    const existing = concorrentesCache.find(c => String(c.id || c._linha) === String(editingCompId));
+    if (existing) d._linha = existing._linha;
+  }
+  showLoading(true);
+  const res = await apiCall('saveConcorrente', d, false);
+  showLoading(false);
+  document.getElementById('modalConcorrente').classList.remove('open');
+  await carregarConcorrentes();
+  alert('✅ Concorrente salvo!');
+}
+
+async function excluirConcorrente(id) {
+  if (!confirm('Excluir este concorrente?')) return;
+  const c = concorrentesCache.find(x => String(x.id || x._linha) === String(id));
+  if (!c) return;
+  showLoading(true);
+  await apiCall('deleteConcorrente', { _linha: c._linha }, false);
+  showLoading(false);
+  await carregarConcorrentes();
+  document.getElementById('compDetail').classList.add('hidden');
+}
+
+async function analisarConcorrenteIA() {
+  if (!compSelecionado) { alert('Selecione um concorrente!'); return; }
+  const q = document.getElementById('compAiQuestion').value.trim();
+  const prompt = q
+    ? `Sobre o concorrente ${compSelecionado.name} em Lajeado/RS: ${q}. Considere que a MHNET oferece: ${compSelecionado.mhnet}`
+    : `Crie um script de vendas para MHNET abordando cliente da ${compSelecionado.name}. 2 desvantagens do concorrente e 2 vantagens da MHNET. Máximo 5 linhas.`;
+  const resp = document.getElementById('compAiResp');
+  resp.classList.remove('hidden');
+  resp.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analisando...';
+  const answer = await callGeminiDirect(prompt);
+  resp.innerHTML = answer || 'IA indisponível no momento.';
+}
+
+// ============================================================
+// INDICADORES V220
+// ============================================================
+function abrirIndicadores() { navegarPara('indicadores'); carregarIndicadores(); }
+
+async function carregarIndicadores() {
+  showLoading(true);
+  if (isAdminUser()) {
+    await carregarIndicadoresAdmin();
+  } else {
+    await carregarIndicadoresVendedor();
+  }
+  showLoading(false);
+}
+
+async function carregarIndicadoresAdmin(mes = null, ano = null) {
+  const params = { vendedor: loggedUser };
+  if (mes !== null) params.mes = mes;
+  if (ano !== null) params.ano = ano;
+
+  const res = await apiCall('getAdminIndicators', params, false);
+  if (res?.status !== 'success') return;
+  const d = res.data;
+
+  document.getElementById('indMes').innerText = d.periodo || '';
+  document.getElementById('funnelLeads').innerText   = d.totalGeral || 0;
+  document.getElementById('indRealizado').innerText  = d.vendasGeral || 0;
+  document.getElementById('indNegociacao').innerText = d.totalLeadsHoje || 0;
+  const total = d.totalGeral || 1;
+  document.getElementById('pbLeads').style.width  = '100%';
+  document.getElementById('pbVendas').style.width = Math.min(100, (d.vendasGeral / total) * 100) + '%';
+  document.getElementById('pbNeg').style.width    = '0%';
+
+  // Atualiza labels para contexto admin
+  const lblLeads = document.getElementById('indLabelLeads');
+  if (lblLeads) lblLeads.innerText = 'Total de Leads (período)';
+  const lblVendas = document.getElementById('indLabelVendas');
+  if (lblVendas) lblVendas.innerText = 'Vendas Fechadas';
+  const lblNeg = document.getElementById('indLabelNeg');
+  if (lblNeg) lblNeg.innerText = 'Leads Hoje (todos vendedores)';
+
+  // Ranking de vendedores
+  const rankDiv = document.getElementById('indRankingVendedores');
+  if (rankDiv && d.ranking?.length) {
+    rankDiv.classList.remove('hidden');
+    rankDiv.innerHTML = `
+      <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-crown" style="color:var(--warning);"></i> Ranking da Equipe
+      </div>
+      ${d.ranking.map((v, i) => `
+      <div style="background:${i === 0 ? '#fffbeb' : 'var(--card)'};border:1px solid ${i === 0 ? '#fde68a' : 'var(--border)'};border-radius:var(--r-sm);padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px;">
+        <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--warning)':i===1?'#94a3b8':'#cbd5e1'};display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;color:#fff;flex-shrink:0;">${i+1}</div>
+        <div style="flex:1;">
+          <div style="font-size:.82rem;font-weight:700;color:var(--text-1);">${v.nome}</div>
+          <div style="font-size:.65rem;color:var(--text-3);">${v.totalLeads} leads · ${v.leadsHoje} hoje · Conv. ${v.conversao}%</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:1.1rem;font-weight:900;color:var(--navy);">${v.vendas}</div>
+          <div style="font-size:.6rem;color:var(--text-3);text-transform:uppercase;">vendas</div>
+        </div>
+      </div>`).join('')}
+    `;
+  }
+
+  // Mini gráfico de barras (série diária)
+  renderMiniGrafico(d.serieDiaria || [], 'indGrafico', 'Leads por Dia');
+
+  // Filtro de mês
+  const filtroDiv = document.getElementById('indFiltroMes');
+  if (filtroDiv) filtroDiv.classList.remove('hidden');
+}
+
+async function carregarIndicadoresVendedor() {
+  const res = await apiCall('getVendedorIndicators', { vendedor: loggedUser }, false);
+  if (res?.status !== 'success') return;
+  const d = res.data;
+
+  document.getElementById('indMes').innerText = d.mesAtual || '';
+  document.getElementById('funnelLeads').innerText   = d.totalAtual || 0;
+  document.getElementById('indRealizado').innerText  = d.vendaAtual || 0;
+  document.getElementById('indNegociacao').innerText = d.negAtual || 0;
+  const total = d.totalAtual || 1;
+  document.getElementById('pbLeads').style.width  = '100%';
+  document.getElementById('pbVendas').style.width = Math.min(100, (d.vendaAtual / total) * 100) + '%';
+  document.getElementById('pbNeg').style.width    = Math.min(100, (d.negAtual / total) * 100) + '%';
+
+  // Comparativo com mês anterior
+  const comparDiv = document.getElementById('indComparativo');
+  if (comparDiv) {
+    comparDiv.classList.remove('hidden');
+    const crescStr = d.crescimento !== null
+      ? `${d.crescimento > 0 ? '+' : ''}${d.crescimento}%`
+      : '—';
+    const crescColor = d.crescimento > 0 ? 'var(--success)' : d.crescimento < 0 ? 'var(--danger)' : 'var(--text-3)';
+    comparDiv.innerHTML = `
+      <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:10px;">Comparativo com ${d.mesAnterior}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:var(--text-3);">${d.totalAnterior}</div>
+          <div style="font-size:.6rem;color:var(--text-3);text-transform:uppercase;">Leads ant.</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:${crescColor};">${crescStr}</div>
+          <div style="font-size:.6rem;color:var(--text-3);text-transform:uppercase;">Crescimento</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center;">
+          <div style="font-size:1.4rem;font-weight:900;color:var(--text-3);">${d.vendaAnterior}</div>
+          <div style="font-size:.6rem;color:var(--text-3);text-transform:uppercase;">Vendas ant.</div>
+        </div>
+      </div>`;
+  }
+
+  // Chip de leads hoje
+  const hojeTile = document.getElementById('indLeadsHoje');
+  if (hojeTile) {
+    hojeTile.classList.remove('hidden');
+    hojeTile.innerHTML = `<div style="font-size:2rem;font-weight:900;color:var(--cyan);">${d.leadsHoje}</div><div style="font-size:.6rem;color:var(--text-3);text-transform:uppercase;">Leads Hoje</div>`;
+  }
+
+  renderMiniGrafico(d.serieDiaria || [], 'indGrafico', 'Leads por Dia');
+
+  const iaRes = await apiCall('analyzeIndicators', { meta: 20, vendas: d.vendaAtual }, false);
+  if (iaRes?.message) {
+    document.getElementById('iaMsgBox').classList.remove('hidden');
+    document.getElementById('iaMsgTxt').innerText = iaRes.message;
+  }
+}
+
+/**
+ * Renderiza mini-gráfico de barras SVG inline
+ */
+function renderMiniGrafico(serie, containerId, titulo) {
+  const div = document.getElementById(containerId);
+  if (!div || !serie.length) return;
+
+  const maxVal = Math.max(...serie.map(s => s.leads), 1);
+  const barW = Math.max(8, Math.floor(280 / serie.length) - 2);
+  const chartH = 60;
+
+  const bars = serie.map((s, i) => {
+    const h = Math.max(3, Math.round((s.leads / maxVal) * chartH));
+    const x = i * (barW + 2);
+    const y = chartH - h;
+    const isToday = s.dia === new Date().toLocaleDateString('pt-BR');
+    return `<g>
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2"
+        fill="${isToday ? 'var(--cyan)' : 'var(--navy-mid)'}" opacity="${isToday ? 1 : 0.65}"/>
+      ${s.leads > 0 ? `<text x="${x + barW/2}" y="${y - 2}" text-anchor="middle" font-size="7" fill="var(--text-3)">${s.leads}</text>` : ''}
+    </g>`;
+  }).join('');
+
+  // Datas (últimos e primeiro da série)
+  let labelHtml = '';
+  if (serie.length > 0) {
+    const first = serie[0].dia.split('/').slice(0,2).join('/');
+    const last  = serie[serie.length-1].dia.split('/').slice(0,2).join('/');
+    labelHtml = `<div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--text-3);margin-top:2px;"><span>${first}</span><span>${last}</span></div>`;
+  }
+
+  div.classList.remove('hidden');
+  div.innerHTML = `
+    <div style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:8px;">${titulo}</div>
+    <svg width="100%" height="${chartH + 10}" viewBox="0 0 ${serie.length * (barW + 2)} ${chartH + 10}" preserveAspectRatio="none">
+      ${bars}
+    </svg>
+    ${labelHtml}`;
+}
+
+// Filtro de mês para admin
+function filtrarIndicadoresMes() {
+  const sel = document.getElementById('selFiltroMes');
+  if (!sel) return;
+  const val = sel.value;
+  if (!val) {
+    carregarIndicadoresAdmin();
+    return;
+  }
+  const [ano, mes] = val.split('-');
+  carregarIndicadoresAdmin(parseInt(mes)-1, parseInt(ano));
 }
 
 // ============================================================
@@ -893,10 +1256,9 @@ async function salvarTarefa() {
   const desc = document.getElementById('taskDesc').value.trim();
   if (!desc) { alert('Informe a descrição!'); return; }
   await apiCall('addTask', {
-    vendedor:   loggedUser,
-    descricao:  desc,
+    vendedor: loggedUser, descricao: desc,
     dataLimite: document.getElementById('taskDate').value,
-    nomeLead:   document.getElementById('taskLeadSelect').value
+    nomeLead: document.getElementById('taskLeadSelect').value
   });
   document.getElementById('taskModal').classList.remove('open');
   document.getElementById('taskDesc').value = '';
@@ -937,27 +1299,16 @@ function renderTarefasNoModal(nomeLead) {
 function abrirCalendario() { window.open(CALENDAR_URL, '_blank'); }
 
 // ============================================================
-// FALTAS — Envia via backend (e-mail HTML + callmebot)
+// FALTAS
 // ============================================================
 async function enviarJustificativa() {
   const data    = document.getElementById('faltaData').value;
   const motivo  = document.getElementById('faltaMotivo').value;
   const obs     = document.getElementById('faltaObs').value;
   const arquivo = document.getElementById('faltaArquivo').files[0];
-
   if (!data || !motivo) { alert('⚠️ Preencha data e tipo de solicitação!'); return; }
-
-  const payload = {
-    vendedor:    loggedUser,
-    dataFalta:   data,
-    motivo:      motivo,
-    observacao:  obs,
-    emailAdmin:  EMAIL_ADMIN
-  };
-
+  const payload = { vendedor: loggedUser, dataFalta: data, motivo, observacao: obs, emailAdmin: EMAIL_ADMIN };
   showLoading(true);
-
-  // Processa arquivo se houver
   if (arquivo) {
     try {
       const base64 = await new Promise((res, rej) => {
@@ -966,17 +1317,11 @@ async function enviarJustificativa() {
         reader.onerror = () => rej(new Error('Erro ao ler arquivo'));
         reader.readAsDataURL(arquivo);
       });
-      payload.fileData = base64;
-      payload.fileName = arquivo.name;
-      payload.mimeType = arquivo.type;
-    } catch(e) {
-      console.warn('Erro ao processar arquivo:', e);
-    }
+      payload.fileData = base64; payload.fileName = arquivo.name; payload.mimeType = arquivo.type;
+    } catch(e) {}
   }
-
   const res = await apiCall('registerAbsence', payload, false);
   showLoading(false);
-
   if (res?.status === 'success') {
     alert('✅ Solicitação enviada!\nUm e-mail foi encaminhado ao gestor.');
     limparFormFalta();
@@ -987,20 +1332,17 @@ async function enviarJustificativa() {
 }
 
 function limparFormFalta() {
-  document.getElementById('faltaData').value = '';
-  document.getElementById('faltaMotivo').value = '';
-  document.getElementById('faltaObs').value = '';
-  document.getElementById('faltaArquivo').value = '';
+  ['faltaData','faltaMotivo','faltaObs','faltaArquivo'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
 }
 
 async function carregarHistoricoFaltas() {
   const div = document.getElementById('listaHistoricoFaltas');
   if (!div) return;
   div.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3);"><i class="fas fa-spinner fa-spin"></i></div>';
-
   const params = isAdminUser() ? { vendedor: 'TODOS' } : { vendedor: loggedUser };
   const res = await apiCall('getAbsences', params, false);
-
   if (res?.status === 'success' && res.data?.length) {
     div.innerHTML = res.data.map(f => `
       <div class="hist-falta">
@@ -1019,31 +1361,6 @@ async function carregarHistoricoFaltas() {
 }
 
 // ============================================================
-// INDICADORES
-// ============================================================
-function abrirIndicadores() { navegarPara('indicadores'); carregarIndicadores(); }
-
-async function carregarIndicadores() {
-  const res = await apiCall('getIndicators', { vendedor: loggedUser }, false);
-  if (res?.status === 'success') {
-    const d = res.data;
-    document.getElementById('indMes').innerText = d.mes || '';
-    document.getElementById('funnelLeads').innerText   = d.totalLeads || 0;
-    document.getElementById('indRealizado').innerText  = d.vendas     || 0;
-    document.getElementById('indNegociacao').innerText = d.negociacao  || 0;
-    const total = d.totalLeads || 1;
-    document.getElementById('pbLeads').style.width  = '100%';
-    document.getElementById('pbVendas').style.width = Math.min(100, (d.vendas     / total) * 100) + '%';
-    document.getElementById('pbNeg').style.width    = Math.min(100, (d.negociacao / total) * 100) + '%';
-    const iaRes = await apiCall('analyzeIndicators', { meta: 20, vendas: d.vendas }, false);
-    if (iaRes?.message) {
-      document.getElementById('iaMsgBox').classList.remove('hidden');
-      document.getElementById('iaMsgTxt').innerText = iaRes.message;
-    }
-  }
-}
-
-// ============================================================
 // MATERIAIS
 // ============================================================
 async function carregarMateriais(f = null) {
@@ -1057,13 +1374,8 @@ async function carregarMateriais(f = null) {
     const btnV = document.getElementById('btnVoltarMateriais');
     const tit  = document.getElementById('tituloMateriais');
     if (btnV) {
-      if (res.isRoot) {
-        btnV.onclick = () => navegarPara('dashboard');
-        if (tit) tit.innerText = 'Materiais';
-      } else {
-        btnV.onclick = () => carregarMateriais(null);
-        if (tit) tit.innerText = '← Voltar';
-      }
+      if (res.isRoot) { btnV.onclick = () => navegarPara('dashboard'); if (tit) tit.innerText = 'Materiais'; }
+      else { btnV.onclick = () => carregarMateriais(null); if (tit) tit.innerText = '← Voltar'; }
     }
     renderMateriais(materialsCache);
   } else {
@@ -1107,147 +1419,21 @@ function renderMateriais(items) {
 }
 
 // ============================================================
-// CONCORRENTES
-// ============================================================
-function inicializarConcorrentes() {
-  renderGridConcorrentes();
-}
-
-function renderGridConcorrentes() {
-  const grid = document.getElementById('compGrid');
-  if (!grid) return;
-  grid.innerHTML = CONCORRENTES.map(c => `
-    <div class="comp-card" onclick="selecionarConcorrente('${c.id}')">
-      <div class="comp-logo" style="background:${c.cor};">${c.sigla}</div>
-      <div class="comp-name">${c.name}</div>
-      <div class="comp-type">${c.type}</div>
-      ${isAdminUser() ? `<div style="margin-top:6px;display:flex;gap:4px;">
-        <button onclick="event.stopPropagation();editarConcorrente('${c.id}')" style="flex:1;background:#dbeafe;color:#1d4ed8;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">✏️ Editar</button>
-        <button onclick="event.stopPropagation();excluirConcorrente('${c.id}')" style="flex:1;background:#fee2e2;color:#b91c1c;border:none;border-radius:5px;padding:4px;font-size:.65rem;font-weight:700;cursor:pointer;">🗑️</button>
-      </div>` : ''}
-    </div>`).join('');
-}
-
-function selecionarConcorrente(id) {
-  compSelecionado = CONCORRENTES.find(c => c.id === id);
-  if (!compSelecionado) return;
-  document.querySelectorAll('.comp-card').forEach(c => c.classList.remove('selected'));
-  document.querySelectorAll('.comp-card').forEach(c => {
-    if (c.querySelector('.comp-name')?.innerText === compSelecionado.name) c.classList.add('selected');
-  });
-  const det = document.getElementById('compDetail');
-  det.classList.remove('hidden');
-  det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.getElementById('compDetailLogo').style.background = compSelecionado.cor;
-  document.getElementById('compDetailLogo').innerText = compSelecionado.sigla;
-  document.getElementById('compDetailName').innerText = compSelecionado.name;
-  document.getElementById('compDetailType').innerText = compSelecionado.type;
-  document.getElementById('compPros').innerHTML = compSelecionado.pros.map(p => `<div class="pc-item">${p}</div>`).join('');
-  document.getElementById('compCons').innerHTML = compSelecionado.cons.map(c => `<div class="pc-item">${c}</div>`).join('');
-  document.getElementById('compMhnet').innerText = compSelecionado.mhnet;
-  const resp = document.getElementById('compAiResp');
-  resp.classList.add('hidden');
-  resp.innerText = '';
-  document.getElementById('compAiQuestion').value = '';
-}
-
-function abrirModalNovoConcorrente() {
-  editingCompId = null;
-  document.getElementById('compModalTitle').innerText = 'Novo Concorrente';
-  ['compFormNome','compFormSigla','compFormTipo','compFormMhnet','compFormPros','compFormCons'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
-  });
-  const cor = document.getElementById('compFormCor'); if(cor) cor.value = '#1565c0';
-  document.getElementById('modalConcorrente').classList.add('open');
-}
-
-function editarConcorrente(id) {
-  const c = CONCORRENTES.find(x => x.id === id);
-  if (!c) return;
-  editingCompId = id;
-  document.getElementById('compModalTitle').innerText = 'Editar Concorrente';
-  document.getElementById('compFormNome').value  = c.name;
-  document.getElementById('compFormSigla').value = c.sigla;
-  document.getElementById('compFormTipo').value  = c.type;
-  document.getElementById('compFormCor').value   = c.cor;
-  document.getElementById('compFormMhnet').value = c.mhnet;
-  document.getElementById('compFormPros').value  = c.pros.join('\n');
-  document.getElementById('compFormCons').value  = c.cons.join('\n');
-  document.getElementById('modalConcorrente').classList.add('open');
-}
-
-function salvarConcorrente() {
-  const nome  = document.getElementById('compFormNome').value.trim();
-  const sigla = document.getElementById('compFormSigla').value.trim().toUpperCase();
-  const tipo  = document.getElementById('compFormTipo').value.trim();
-  const cor   = document.getElementById('compFormCor').value;
-  const mhnet = document.getElementById('compFormMhnet').value.trim();
-  const pros  = document.getElementById('compFormPros').value.split('\n').filter(Boolean);
-  const cons  = document.getElementById('compFormCons').value.split('\n').filter(Boolean);
-  if (!nome || !sigla) { alert('Preencha nome e sigla!'); return; }
-  if (editingCompId) {
-    const idx = CONCORRENTES.findIndex(c => c.id === editingCompId);
-    if (idx >= 0) CONCORRENTES[idx] = { ...CONCORRENTES[idx], name: nome, sigla, type: tipo, cor, mhnet, pros, cons };
-  } else {
-    CONCORRENTES.push({ id: 'comp_' + Date.now(), name: nome, sigla, type: tipo, cor, mhnet, pros, cons });
-  }
-  localStorage.setItem('mhnet_concorrentes', JSON.stringify(CONCORRENTES));
-  document.getElementById('modalConcorrente').classList.remove('open');
-  renderGridConcorrentes();
-  alert('✅ Concorrente salvo!');
-}
-
-function excluirConcorrente(id) {
-  if (!confirm('Excluir este concorrente?')) return;
-  CONCORRENTES = CONCORRENTES.filter(c => c.id !== id);
-  localStorage.setItem('mhnet_concorrentes', JSON.stringify(CONCORRENTES));
-  renderGridConcorrentes();
-  document.getElementById('compDetail').classList.add('hidden');
-}
-
-async function analisarConcorrenteIA() {
-  if (!compSelecionado) { alert('Selecione um concorrente!'); return; }
-  const q = document.getElementById('compAiQuestion').value.trim();
-  const prompt = q
-    ? `No contexto de vendas de internet em Lajeado/RS, sobre o concorrente ${compSelecionado.name}: ${q}. Considere que a MHNET oferece: ${compSelecionado.mhnet}`
-    : `Crie um script de vendas para MHNET abordando cliente da ${compSelecionado.name}. Mencione 2 desvantagens do concorrente e 2 vantagens da MHNET. Seja objetivo, máximo 5 linhas.`;
-
-  const resp = document.getElementById('compAiResp');
-  resp.classList.remove('hidden');
-  resp.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analisando...';
-
-  const answer = await callGeminiDirect(prompt);
-  resp.innerHTML = answer || 'IA indisponível no momento. Tente novamente.';
-}
-
-// ============================================================
 // IA HÍBRIDA — Gemini direto com fallback backend
 // ============================================================
 async function callGeminiDirect(userPrompt) {
   try {
     const fullPrompt = `${MHNET_CONTEXT}\n\nPergunta/Solicitação: ${userPrompt}`;
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: { maxOutputTokens: 500, temperature: 0.7 }
-      })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }], generationConfig: { maxOutputTokens: 500, temperature: 0.7 } })
     });
-    if (!res.ok) {
-      console.warn('Gemini HTTP', res.status);
-      AI_DISPONIVEL = false;
-      return null;
-    }
+    if (!res.ok) { AI_DISPONIVEL = false; return null; }
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (text) { AI_DISPONIVEL = true; return text; }
     return null;
-  } catch(e) {
-    console.warn('Gemini error:', e.message);
-    AI_DISPONIVEL = false;
-    return null;
-  }
+  } catch(e) { AI_DISPONIVEL = false; return null; }
 }
 
 // ============================================================
@@ -1259,61 +1445,40 @@ async function combaterObjecaoGeral() {
   const div = document.getElementById('resultadoObjecaoGeral');
   div.classList.remove('hidden');
   div.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando resposta...';
-
-  const prompt = `Você é um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empática em até 4 linhas para contornar essa objeção.`;
+  const prompt = `Você é um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empática em até 4 linhas.`;
   let answer = await callGeminiDirect(prompt);
-
-  // Fallback backend
-  if (!answer) {
-    div.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando servidor...';
-    const res = await apiCall('solveObjection', { objection: o }, false);
-    answer = res?.answer;
-  }
-
-  if (answer) {
-    div.innerHTML = answer;
-    div.style.color = 'var(--text-1)';
-  } else {
-    div.innerHTML = '⚠️ IA indisponível no momento. Verifique sua conexão.';
-    div.style.color = 'var(--danger)';
-  }
+  if (!answer) { const res = await apiCall('solveObjection', { objection: o }, false); answer = res?.answer; }
+  div.innerHTML = answer || '⚠️ IA indisponível.';
+  div.style.color = answer ? 'var(--text-1)' : 'var(--danger)';
 }
 
 async function combaterObjecaoLead() {
   const o = document.getElementById('inputObjecaoLead').value.trim();
   if (!o) { alert('Informe a objeção!'); return; }
-  const prompt = `Você é um vendedor expert da MHNET. Um cliente disse: "${o}". Responda de forma persuasiva e empática em até 4 linhas.`;
-  let answer = await callGeminiDirect(prompt);
-  if (!answer) {
-    const res = await apiCall('solveObjection', { objection: o }, false);
-    answer = res?.answer;
-  }
+  let answer = await callGeminiDirect(`Vendedor da MHNET. Cliente disse: "${o}". Resposta persuasiva em até 4 linhas.`);
+  if (!answer) { const res = await apiCall('solveObjection', { objection: o }, false); answer = res?.answer; }
   if (answer) document.getElementById('respostaObjecaoLead').value = answer;
-  else alert('⚠️ IA indisponível. Tente novamente.');
+  else alert('⚠️ IA indisponível.');
 }
 
 async function salvarObjecaoLead() {
   if (!leadAtualParaAgendar) return;
   await apiCall('saveObjectionLead', {
-    vendedor: loggedUser,
-    nomeLead: leadAtualParaAgendar.nomeLead,
+    vendedor: loggedUser, nomeLead: leadAtualParaAgendar.nomeLead,
     objection: document.getElementById('inputObjecaoLead').value,
-    answer:    document.getElementById('respostaObjecaoLead').value
+    answer: document.getElementById('respostaObjecaoLead').value
   });
   alert('✅ Objeção salva!');
 }
 
 async function gerarCoachIA() {
   showLoading(true);
-  const prompt = 'Dê uma frase motivacional curta e poderosa para um vendedor externo de internet porta a porta. Máximo 2 linhas. Seja criativo e energizante.';
+  const prompt = 'Dê uma frase motivacional curta e poderosa para um vendedor externo de internet porta a porta. Máximo 2 linhas.';
   let answer = await callGeminiDirect(prompt);
-  if (!answer) {
-    const res = await apiCall('askAI', { question: prompt }, false);
-    answer = res?.answer;
-  }
+  if (!answer) { const res = await apiCall('askAI', { question: prompt }, false); answer = res?.answer; }
   showLoading(false);
   if (answer) alert('💪 ' + answer);
-  else alert('⚠️ IA indisponível no momento. Tente novamente.');
+  else alert('⚠️ IA indisponível no momento.');
 }
 
 // ============================================================
@@ -1323,7 +1488,7 @@ function consultarPlanosIA() {
   document.getElementById('chatModal').classList.add('open');
   const hist = document.getElementById('chatHistory');
   if (!hist.children.length) {
-    hist.innerHTML = '<div class="c-msg ai">👋 Olá! Sou o assistente MHNET. Posso ajudar com planos, scripts de vendas, objeções e muito mais!</div>';
+    hist.innerHTML = '<div class="c-msg ai">👋 Olá! Sou o assistente MHNET. Posso ajudar com planos, scripts, objeções e muito mais!</div>';
   }
 }
 
@@ -1337,20 +1502,13 @@ async function enviarMensagemChat() {
   hist.innerHTML += `<div class="c-msg user">${m}</div>`;
   input.value = '';
   hist.scrollTop = hist.scrollHeight;
-
   const typingId = 'typing_' + Date.now();
   hist.innerHTML += `<div class="c-msg ai" id="${typingId}"><i class="fas fa-circle-notch fa-spin"></i> Pensando...</div>`;
   hist.scrollTop = hist.scrollHeight;
-
   let answer = await callGeminiDirect(m);
-
-  if (!answer) {
-    const res = await apiCall('askAI', { question: m }, false);
-    answer = res?.answer;
-  }
-
+  if (!answer) { const res = await apiCall('askAI', { question: m }, false); answer = res?.answer; }
   const el = document.getElementById(typingId);
-  if (el) el.outerHTML = `<div class="c-msg ai">${answer || '⚠️ IA temporariamente indisponível. Tente novamente.'}</div>`;
+  if (el) el.outerHTML = `<div class="c-msg ai">${answer || '⚠️ IA temporariamente indisponível.'}</div>`;
   hist.scrollTop = hist.scrollHeight;
 }
 
@@ -1369,8 +1527,8 @@ async function buscarEnderecoGPS() {
         const a = data.address;
         const setV = (id, v) => { const el = document.getElementById(id); if(el && v) el.value = v; };
         setV('leadEndereco', a.road || a.pedestrian);
-        setV('leadBairro',   a.suburb || a.neighbourhood || a.quarter || a.city_district);
-        setV('leadCidade',   a.city || a.town || a.village || a.municipality);
+        setV('leadBairro', a.suburb || a.neighbourhood || a.quarter);
+        setV('leadCidade', a.city || a.town || a.village);
         alert('✅ Endereço preenchido!');
       }
     } catch(e) { alert('Erro ao obter endereço.'); }
@@ -1422,7 +1580,6 @@ async function processarFilaSincronizacao() {
     catch(e) { syncQueue.push(item); }
   }
   localStorage.setItem('mhnet_sync_queue', JSON.stringify(syncQueue));
-  if (queue.length) console.log(`✅ ${queue.length} ops offline sincronizadas.`);
 }
 
 // ============================================================
