@@ -466,7 +466,26 @@
     .flex-row { display: flex; gap: 8px; }
     .flex-1 { flex: 1; }
     .text-mono { font-family: 'Space Mono', monospace; }
+ 
+    //* Animação para leads sem atualização há 10+ dias */
+@keyframes pulseAlert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+  50%       { box-shadow: 0 0 0 4px rgba(245,158,11,0.18); }
+}
+ 
+/* Indicadores: ranking e comparativo */
+#indRankingVendedores { margin-bottom: 14px; }
+#indComparativo       { margin-bottom: 14px; }
+#indLeadsHoje         { background: var(--navy); border-radius: var(--r-md); padding: 14px; text-align: center; margin-bottom: 14px; }
+#indGrafico           { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px; margin-bottom: 14px; }
+#indFiltroMes         { margin-bottom: 14px; display: flex; gap: 8px; align-items: center; }
+#indFiltroMes label   { font-size: .68rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; }
+#selFiltroMes         { flex: 1; background: var(--card); border: 1.5px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; font-size: .82rem; color: var(--text-1); }
+ 
+/* Linha de meta info no lead card */
+.lead-meta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
 
+    
     /* ====================================================
        RESPONSIVE
     ==================================================== */
@@ -826,25 +845,64 @@
 
       <!-- ============ INDICADORES ============ -->
       <div id="indicadores" class="page">
-        <div class="pg-hdr">
-          <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
-          <h2 class="pg-title">Indicadores</h2>
-        </div>
-        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:14px;display:flex;align-items:center;gap:6px;"><i class="far fa-calendar"></i><span id="indMes">--</span></div>
-        <div class="ind-card">
-          <div class="ind-row"><span class="ind-label">Total de Leads</span><span class="ind-val" id="funnelLeads">0</span></div>
-          <div class="prog-bar"><div class="prog-fill" id="pbLeads" style="width:0%;background:linear-gradient(90deg,var(--navy-mid),var(--cyan))"></div></div>
-        </div>
-        <div class="ind-card">
-          <div class="ind-row"><span class="ind-label">Vendas Fechadas</span><span class="ind-val" id="indRealizado">0</span></div>
-          <div class="prog-bar"><div class="prog-fill" id="pbVendas" style="width:0%;background:linear-gradient(90deg,var(--success),#34d399)"></div></div>
-        </div>
-        <div class="ind-card">
-          <div class="ind-row"><span class="ind-label">Em Negociação</span><span class="ind-val" id="indNegociacao">0</span></div>
-          <div class="prog-bar"><div class="prog-fill" id="pbNeg" style="width:0%;background:linear-gradient(90deg,var(--warning),#fbbf24)"></div></div>
-        </div>
-        <div id="iaMsgBox" class="ai-resp-box hidden"><i class="fas fa-robot"></i> <span id="iaMsgTxt"></span></div>
-      </div>
+  <div class="pg-hdr">
+    <button class="pg-back" onclick="navegarPara('dashboard')"><i class="fas fa-arrow-left"></i></button>
+    <h2 class="pg-title">Indicadores</h2>
+    <button onclick="carregarIndicadores()" style="margin-left:auto;color:var(--navy);padding:4px;font-size:.95rem;"><i class="fas fa-sync-alt"></i></button>
+  </div>
+ 
+  <!-- Período -->
+  <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:14px;display:flex;align-items:center;gap:6px;">
+    <i class="far fa-calendar"></i><span id="indMes">--</span>
+  </div>
+ 
+  <!-- Filtro de mês (somente admin) -->
+  <div id="indFiltroMes" class="hidden">
+    <label>Filtrar mês:</label>
+    <input type="month" id="selFiltroMes" class="f-input" style="flex:1;padding:8px 10px;font-size:.82rem;" onchange="filtrarIndicadoresMes()">
+    <button onclick="document.getElementById('selFiltroMes').value='';filtrarIndicadoresMes()" class="btn btn-ghost btn-sm">Atual</button>
+  </div>
+ 
+  <!-- Leads hoje (vendedor) -->
+  <div id="indLeadsHoje" class="hidden"></div>
+ 
+  <!-- Cards principais -->
+  <div class="ind-card">
+    <div class="ind-row">
+      <span class="ind-label" id="indLabelLeads">Total de Leads</span>
+      <span class="ind-val" id="funnelLeads">0</span>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="pbLeads" style="width:0%;background:linear-gradient(90deg,var(--navy-mid),var(--cyan))"></div></div>
+  </div>
+  <div class="ind-card">
+    <div class="ind-row">
+      <span class="ind-label" id="indLabelVendas">Vendas Fechadas</span>
+      <span class="ind-val" id="indRealizado">0</span>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="pbVendas" style="width:0%;background:linear-gradient(90deg,var(--success),#34d399)"></div></div>
+  </div>
+  <div class="ind-card">
+    <div class="ind-row">
+      <span class="ind-label" id="indLabelNeg">Em Negociação</span>
+      <span class="ind-val" id="indNegociacao">0</span>
+    </div>
+    <div class="prog-bar"><div class="prog-fill" id="pbNeg" style="width:0%;background:linear-gradient(90deg,var(--warning),#fbbf24)"></div></div>
+  </div>
+ 
+  <!-- Gráfico de barras diário -->
+  <div id="indGrafico" class="hidden"></div>
+ 
+  <!-- Comparativo mês anterior (vendedor) -->
+  <div id="indComparativo" class="hidden"></div>
+ 
+  <!-- Ranking da equipe (admin) -->
+  <div id="indRankingVendedores" class="ind-card hidden"></div>
+ 
+  <!-- Mensagem IA motivacional -->
+  <div id="iaMsgBox" class="ai-resp-box hidden">
+    <i class="fas fa-robot"></i> <span id="iaMsgTxt"></span>
+  </div>
+</div>
 
       <!-- ============ MATERIAIS ============ -->
       <div id="materiais" class="page">
@@ -938,6 +996,20 @@
       <div class="modal-info-tile"><div class="mit-lbl">Provedor</div><div class="mit-val" id="modalLeadProvedor">-</div></div>
       <div class="modal-info-tile"><div class="mit-lbl">Plano</div><div class="mit-val" id="modalLeadPlano">-</div></div>
       <div class="modal-info-tile"><div class="mit-lbl">Valor</div><div class="mit-val" id="modalLeadValor">-</div></div>
+      <div id="leadModalMetaBlock" style="background:var(--surface);border-radius:9px;padding:10px 12px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:7px;">
+  <div>
+    <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:2px;">Cadastrado em</div>
+    <div id="modalLeadDataCadastro" style="font-size:.8rem;font-weight:700;color:var(--text-1);">-</div>
+  </div>
+  <div>
+    <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:2px;">Última atualização</div>
+    <div id="modalLeadUltAtual" style="font-size:.8rem;font-weight:700;color:var(--text-1);">-</div>
+  </div>
+  <div style="grid-column:span 2;" id="modalLeadVendedorRow">
+    <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:2px;">Vendedor responsável</div>
+    <div id="modalLeadVendedor" style="font-size:.8rem;font-weight:700;color:var(--navy);">-</div>
+  </div>
+</div>
     </div>
     <div id="modalFidelidadeBox" class="hidden" style="background:#fff7ed;border:1px solid #fde68a;border-radius:8px;padding:10px;margin-bottom:16px;font-size:.8rem;color:#92400e;font-weight:600;"></div>
     <div class="modal-acts">
@@ -1136,5 +1208,60 @@
   </div>
 </div>
 </script>
+<div id="modalProspeccao" class="modal2-back">
+  <div class="modal2-card">
+    <div class="m2-title" id="prosTitulo">Nova Prospecção</div>
+    <div class="field">
+      <label>Nome do Condomínio / Bloco</label>
+      <input class="f-input" id="prosNome" placeholder="Ex: Residencial das Flores">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Construtora</label>
+        <input class="f-input" id="prosConstrutora" placeholder="Ex: Construtora ABC">
+      </div>
+      <div class="field">
+        <label>Data de Entrega</label>
+        <input class="f-input" id="prosDataEntrega" type="date">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Síndico / Administradora</label>
+        <input class="f-input" id="prosSindico" placeholder="Nome">
+      </div>
+      <div class="field">
+        <label>Contato</label>
+        <input class="f-input" id="prosContato" type="tel" placeholder="51 99999-9999">
+      </div>
+    </div>
+    <div class="field">
+      <label>Endereço</label>
+      <input class="f-input" id="prosEndereco" placeholder="Rua e número">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Bairro</label>
+        <input class="f-input" id="prosBairro" placeholder="Bairro">
+      </div>
+      <div class="field">
+        <label>Cidade</label>
+        <input class="f-input" id="prosCidade" placeholder="Lajeado">
+      </div>
+    </div>
+    <div class="field">
+      <label>Consultor Responsável</label>
+      <input class="f-input" id="prosConsultor" placeholder="Nome do consultor">
+    </div>
+    <p style="font-size:.7rem;color:var(--text-3);margin-bottom:12px;background:#eff6ff;border-radius:7px;padding:8px 10px;">
+      <i class="fas fa-info-circle" style="color:var(--navy);"></i>
+      A <strong>próxima ação</strong> será calculada automaticamente para <strong>2 meses</strong> após o registro.
+    </p>
+    <div class="flex-row">
+      <button class="btn btn-navy" style="flex:1;" onclick="salvarProspeccao()"><i class="fas fa-save"></i> Salvar</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById('modalProspeccao').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
